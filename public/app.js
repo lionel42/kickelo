@@ -78,6 +78,29 @@ async function loadPlayerDropdowns() {
         if (e.target.value === "__add_new__") {
           const newName = prompt("Enter new player name:");
           if (newName) {
+            // Check if the name is already taken
+            const existingDoc = await db.collection("players").doc(newName).get();
+            if (existingDoc.exists) {
+              // Player already exists, alert the user
+              alert(`Player "${newName}" already exists. Please choose a different name.`);
+              e.target.value = ""; // Reset selection
+              return;
+            }
+            // Validate new name
+            if (!newName.trim()) {
+              alert("Player name cannot be empty.");
+              e.target.value = ""; // Reset selection
+              return;
+            }
+            // Check for invalid characters. For simplicity, let's allow alphanumeric characters and underscores only.
+            const validNamePattern = /^[a-zA-Z0-9_]+$/;
+            if (!validNamePattern.test(newName)) {
+              alert("Player name can only contain alphanumeric characters and underscores.");
+              e.target.value = ""; // Reset selection
+              return;
+            }
+
+            // Add new player to Firestore
             console.log(`Adding new player: ${newName}`);
             await db.collection("players").doc(newName).set({
               name: newName,
