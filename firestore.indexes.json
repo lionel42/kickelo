@@ -21,6 +21,23 @@
   //    },
   //   ]
   // ]
-  "indexes": [],
+  "indexes": [
+    {
+      "collectionGroup": "matches",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "teamA", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "timestamp", "mode": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "matches",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "teamB", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "timestamp", "mode": "DESCENDING" }
+      ]
+    }
+  ],
   "fieldOverrides": []
 }

@@ -11,7 +11,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-const K = 32;
+const K = 40;
 
 async function getOrCreatePlayer(name) {
   const docRef = db.collection("players").doc(name);
@@ -51,6 +51,9 @@ async function loadPlayerDropdowns() {
         continue;
       }
 
+      // If the dropdowns were already populated, save the currently selected value to restore it later
+      const previousValue = select.value;
+
       select.innerHTML = ""; // Clear old options
 
       // Create default option
@@ -72,6 +75,11 @@ async function loadPlayerDropdowns() {
       newOpt.value = "__add_new__";
       newOpt.textContent = "Add new player…";
       select.appendChild(newOpt);
+
+      // Restore the previously selected value if it exists in the new options
+      if (previousValue && players.includes(previousValue)) {
+        select.value = previousValue; // Restore previous selection
+      }
 
       // Listen for add-new
       select.addEventListener("change", async (e) => {
@@ -193,6 +201,8 @@ async function showLeaderboard() {
     const { name, elo } = doc.data();
     const li = document.createElement("li");
     li.textContent = `${name}: ${elo}`;
+    li.style.cursor = "pointer"; // Indicate clickable
+    li.addEventListener("click", () => clickPlayer(name)); // Add click event
     list.appendChild(li);
   });
 }
@@ -225,6 +235,83 @@ async function showRecentMatches() {
     });
   } catch (error) {
     console.error("Error fetching recent matches:", error);
+  }
+}
+
+
+async function clickPlayer(playerName) {
+    // This function is called when a player is clicked in the leaderboard
+    // If the player is already selected, deselect them
+    const list = document.getElementById("leaderboard");
+    const items = list.getElementsByTagName("li");
+    for (let item of items) {
+        if (item.textContent.startsWith(playerName + ":")) {
+            if (item.classList.contains("selected-player")) {
+                item.classList.remove("selected-player"); // Deselect player
+                await showRecentMatches();
+            } else {
+                selectPlayer(playerName); // Select player
+            }
+            return; // Exit after handling the click
+        }
+    }
+}
+
+
+async function selectPlayer(playerName) {
+    // This function is called when a player is selected from the leaderboard
+    // Mark the selected player in the leaderboard
+
+    const list = document.getElementById("leaderboard");
+    const items = list.getElementsByTagName("li");
+    for (let item of items) {
+        if (item.textContent.startsWith(playerName + ":")) {
+            // Highlight selected player
+            item.classList.add("selected-player");
+        } else {
+            // Reset others
+            item.classList.remove("selected-player");
+        }
+    }
+    // Show the player's matches
+    await showPlayerMatches(playerName);
+}
+
+async function showPlayerMatches(playerName) {
+  const list = document.getElementById("recentMatches");
+  list.innerHTML = ""; // Clear the list
+
+  try {
+    const snapshot = await db.collection("matches")
+      .where("teamA", "array-contains", playerName)
+      .orderBy("timestamp", "desc")
+      .limit(10)
+      .get();
+
+    const snapshotB = await db.collection("matches")
+      .where("teamB", "array-contains", playerName)
+      .orderBy("timestamp", "desc")
+      .limit(10)
+      .get();
+
+    const matches = [...snapshot.docs, ...snapshotB.docs];
+    matches.sort((a, b) => b.data().timestamp - a.data().timestamp); // Sort by timestamp
+
+    matches.forEach(doc => {
+      const match = doc.data();
+      const li = document.createElement("li");
+
+      const teamAPlayers = match.teamA.map(player => `<span style="color: #d20000;">${player}</span>`).join(" & ");
+      const teamBPlayers = match.teamB.map(player => `<span style="color: #0b0bd2;">${player}</span>`).join(" & ");
+
+      const winner = match.winner === "A" ? teamAPlayers : teamBPlayers;
+      const loser = match.winner === "A" ? teamBPlayers : teamAPlayers;
+
+      li.innerHTML = `${winner} won against ${loser}`;
+      list.appendChild(li);
+    });
+  } catch (error) {
+    console.error("Error fetching matches for player:", error);
   }
 }
 
