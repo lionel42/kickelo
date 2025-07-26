@@ -190,7 +190,8 @@ document.getElementById("matchForm").addEventListener("submit", async (e) => {
 
   // Refresh player dropdowns and leaderboard
   document.getElementById("matchForm").reset(); // Reset form fields
-  showLeaderboard();
+  await showLeaderboard();
+  await updateMatchDisplay();
 });
 
 async function showLeaderboard() {
