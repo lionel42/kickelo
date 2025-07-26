@@ -315,6 +315,16 @@ async function showPlayerMatches(playerName) {
   }
 }
 
+async function updateMatchDisplay() {
+  const selectedPlayer = document.querySelector(".selected-player");
+  if (selectedPlayer) {
+    const playerName = selectedPlayer.textContent.split(":")[0];
+    await showPlayerMatches(playerName);
+  } else {
+    await showRecentMatches(); // Show recent matches if no player is selected
+  }
+}
+
 // show leader board and load player dropdowns on page load
 window.onload = async () => {
   await loadPlayerDropdowns();
