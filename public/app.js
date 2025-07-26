@@ -129,6 +129,17 @@ async function loadPlayerDropdowns() {
   }
 }
 
+document.getElementById("swapTeams").addEventListener("click", () => {
+  const tA1 = document.getElementById("teamA1");
+  const tA2 = document.getElementById("teamA2");
+  const tB1 = document.getElementById("teamB1");
+  const tB2 = document.getElementById("teamB2");
+
+  // Swap values
+  [tA1.value, tB1.value] = [tB1.value, tA1.value];
+  [tA2.value, tB2.value] = [tB2.value, tA2.value];
+})
+
 document.getElementById("matchForm").addEventListener("submit", async (e) => {
 
   e.preventDefault();
