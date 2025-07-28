@@ -15,8 +15,7 @@
     <label>Team Red:
       <select id="teamA1"></select>
       <select id="teamA2"></select>
-    </label>
-    <button type="button" id="swapTeams">Swap Teams</button><br>
+    </label><br>
     <label>Team Blue:
       <select id="teamB1"></select>
       <select id="teamB2"></select>
@@ -27,7 +26,10 @@
         <option value="B">Team Blue</option>
       </select>
     </label><br>
-    <button type="submit">Submit Match</button>
+    <div style="display: flex; gap: 10px;">
+      <button type="button" id="swapTeams">Swap Teams</button>
+      <button type="submit">Submit Match</button>
+    </div>
   </form>
 
   <h2>Leaderboard</h2>
