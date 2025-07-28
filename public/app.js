@@ -194,6 +194,7 @@ document.getElementById("matchForm").addEventListener("submit", async (e) => {
     teamA: [tA1, tA2],
     teamB: [tB1, tB2],
     winner: winner,
+    eloDelta: Math.abs(delta),
     timestamp: Date.now(),
   });
 
@@ -219,30 +220,67 @@ async function showLeaderboard() {
   });
 }
 
+function createMatchListItem(match, highlighted_player = null) {
+  const li = document.createElement("li");
+
+  let teamAPlayers = match.teamA.map(player => `<span style="color: #d20000;">${player}</span>`).join(" & ");
+  let teamBPlayers = match.teamB.map(player => `<span style="color: #0b0bd2;">${player}</span>`).join(" & ");
+
+  let winner = match.winner === "A" ? teamAPlayers : teamBPlayers;
+  let loser = match.winner === "A" ? teamBPlayers : teamAPlayers;
+
+  if (highlighted_player) {
+    const isInTeamA = match.teamA.includes(highlighted_player);
+    const isInTeamB = match.teamB.includes(highlighted_player);
+
+    if (!isInTeamA && !isInTeamB) {
+      console.warn(`Player ${highlighted_player} not found in either team.`);
+      console.log(`Match details:`, match);
+    }
+    console.log(`Highlighting player: ${highlighted_player}`);
+
+    if (isInTeamA) {
+      teamAPlayers = `<span style="color: #d20000">${highlighted_player}</span>` +
+        (match.teamA.length > 1 ? " & " + match.teamA.filter(p => p !== highlighted_player).map(player => `<span style="color: #d20000;">${player}</span>`).join(" & ") : "");
+    } else if (isInTeamB) {
+      teamBPlayers = `<span style="color: #0b0bd2">${highlighted_player}</span>` +
+        (match.teamB.length > 1 ? " & " + match.teamB.filter(p => p !== highlighted_player).map(player => `<span style="color: #0b0bd2;">${player}</span>`).join(" & ") : "");
+    }
+    // Update winner and loser based on highlighted player
+    if (match.winner === "B") {
+      if (isInTeamA) {
+        li.innerHTML = `${teamAPlayers} lost to ${teamBPlayers} <span style="font-size: 0.9em; color: gray;">(Elo Δ: ${match.eloDelta || 0})</span>`;
+      } else if (isInTeamB) {
+        li.innerHTML = `${teamBPlayers} won against ${teamAPlayers} <span style="font-size: 0.9em; color: gray;">(Elo Δ: ${match.eloDelta || 0})</span>`;
+      }
+      return li;
+    } else if (match.winner === "A") {
+      if (isInTeamA) {
+        li.innerHTML = `${teamAPlayers} won against ${teamBPlayers} <span style="font-size: 0.9em; color: gray;">(Elo Δ: ${match.eloDelta || 0})</span>`;
+      } else if (isInTeamB) {
+        li.innerHTML = `${teamBPlayers} lost to ${teamAPlayers} <span style="font-size: 0.9em; color: gray;">(Elo Δ: ${match.eloDelta || 0})</span>`;
+      }
+      return li;
+    }
+  }
+
+  li.innerHTML = `${winner} won against ${loser} <span style="font-size: 0.9em; color: gray;">(Elo Δ: ${match.eloDelta || 0})</span>`;
+  return li;
+}
+
 async function showRecentMatches() {
   const list = document.getElementById("recentMatches");
   list.innerHTML = ""; // Clear the list
 
   try {
-    const snapshot = await db.collection("matches")
+    const matches = await db.collection("matches")
       .orderBy("timestamp", "desc")
       .limit(10)
       .get();
 
-    snapshot.forEach(doc => {
+    matches.forEach(doc => {
       const match = doc.data();
-      const li = document.createElement("li");
-
-      // Create colored spans for players
-      const teamAPlayers = match.teamA.map(player => `<span style="color: #d20000;">${player}</span>`).join(" & ");
-      const teamBPlayers = match.teamB.map(player => `<span style="color: #0b0bd2;">${player}</span>`).join(" & ");
-
-      // Determine winner and loser
-      const winner = match.winner === "A" ? teamAPlayers : teamBPlayers;
-      const loser = match.winner === "A" ? teamBPlayers : teamAPlayers;
-
-      // Set the list item content
-      li.innerHTML = `${winner} won against ${loser}`;
+      const li = createMatchListItem(match);
       list.appendChild(li);
     });
   } catch (error) {
@@ -311,15 +349,7 @@ async function showPlayerMatches(playerName) {
 
     matches.forEach(doc => {
       const match = doc.data();
-      const li = document.createElement("li");
-
-      const teamAPlayers = match.teamA.map(player => `<span style="color: #d20000;">${player}</span>`).join(" & ");
-      const teamBPlayers = match.teamB.map(player => `<span style="color: #0b0bd2;">${player}</span>`).join(" & ");
-
-      const winner = match.winner === "A" ? teamAPlayers : teamBPlayers;
-      const loser = match.winner === "A" ? teamBPlayers : teamAPlayers;
-
-      li.innerHTML = `${winner} won against ${loser}`;
+      const li = createMatchListItem(match, playerName);
       list.appendChild(li);
     });
   } catch (error) {

@@ -36,6 +36,8 @@ function updateRatings(team1, team2, winnerIndex, eloMap) {
     eloMap[p].elo -= delta;
     eloMap[p].games += 1;
   });
+
+  return Math.abs(delta);
 }
 
 async function recomputeElo() {
@@ -44,7 +46,11 @@ async function recomputeElo() {
   // const elo_history = {}; // name -> [{rating, games}]
 
   const matchesSnapshot = await db.collection("matches").orderBy("timestamp").get();
-  const matches = matchesSnapshot.docs.map(doc => doc.data());
+
+  const matches = matchesSnapshot.docs.map(doc => {
+    const data = doc.data();
+    return { ...data, id: doc.id }; // Include the document ID
+  });
 
   console.log(`Found ${matches.length} matches`);
 
@@ -62,7 +68,11 @@ async function recomputeElo() {
       if (!elo[player]) elo[player] = { elo: DEFAULT_ELO, games: 0 };
     });
     // console.log(elo)
-    updateRatings(team1, team2, winner, elo);
+    const eloDelta = updateRatings(team1, team2, winner, elo);
+
+    // Update match document with Elo delta
+    const matchRef = db.collection("matches").doc(match.id);
+    await matchRef.update({ eloDelta: eloDelta });
   }
 
   console.log("ELO recompute complete. Writing back to Firestore...");
