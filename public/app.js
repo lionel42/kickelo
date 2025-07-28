@@ -210,12 +210,21 @@ async function showLeaderboard() {
   const list = document.getElementById("leaderboard");
   list.innerHTML = "";
   const snapshot = await db.collection("players").orderBy("elo", "desc").get();
-  snapshot.forEach(doc => {
+  console.log(snapshot)
+  let index = 0; // Initialize index for styling
+  snapshot.forEach((doc) => {
     const { name, elo } = doc.data();
     const li = document.createElement("li");
     li.textContent = `${name}: ${elo}`;
     li.style.cursor = "pointer"; // Indicate clickable
     li.addEventListener("click", () => clickPlayer(name)); // Add click event
+
+    // Apply styles for the top three spots
+    if (index === 0) li.classList.add("gold");
+    else if (index === 1) li.classList.add("silver");
+    else if (index === 2) li.classList.add("bronze");
+    index += 1; // Increment index for next player
+
     list.appendChild(li);
   });
 }
