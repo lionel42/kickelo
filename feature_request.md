@@ -1,0 +1,6 @@
+- Dark Mode
+- Suggested Pairings
+- Tournament Mode (difficult)
+- Better rating algorithm, maybe TrueSkill
+- Player Profiles, including win/loss records, synergies with team-mates in table format
+- Team ELOs
