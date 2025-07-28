@@ -17,8 +17,8 @@ async function getOrCreatePlayer(name) {
   const docRef = db.collection("players").doc(name);
   const doc = await docRef.get();
   if (!doc.exists) {
-    await docRef.set({ name: name, elo: 1000 });
-    return { name, elo: 1000 };
+    await docRef.set({ name: name, elo: 1500 });
+    return { name, elo: 1500 };
   } else {
     return doc.data();
   }
@@ -112,7 +112,7 @@ async function loadPlayerDropdowns() {
             console.log(`Adding new player: ${newName}`);
             await db.collection("players").doc(newName).set({
               name: newName,
-              elo: 1000,
+              elo: 1500,
               games: 0
             });
             await loadPlayerDropdowns(); // Refresh all dropdowns
