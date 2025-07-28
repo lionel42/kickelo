@@ -270,22 +270,38 @@ function createMatchListItem(match, highlighted_player = null) {
 
 async function showRecentMatches() {
   const list = document.getElementById("recentMatches");
-  list.innerHTML = ""; // Clear the list
+  const heading = document.getElementById("recentMatchesHeading");
 
-  try {
-    const matches = await db.collection("matches")
+  // Fade out the heading and list
+  heading.classList.add("hidden");
+  list.classList.add("hidden");
+
+  // Wait for the fade-out transition to complete
+  setTimeout(() => {
+    // Reset the heading text
+    heading.textContent = "Recent Matches";
+    heading.classList.remove("hidden"); // Fade in the heading
+
+    list.innerHTML = ""; // Clear the list
+
+    db.collection("matches")
       .orderBy("timestamp", "desc")
       .limit(10)
-      .get();
+      .get()
+      .then((matches) => {
+        matches.forEach((doc) => {
+          const match = doc.data();
+          const li = createMatchListItem(match);
+          list.appendChild(li);
+        });
 
-    matches.forEach(doc => {
-      const match = doc.data();
-      const li = createMatchListItem(match);
-      list.appendChild(li);
-    });
-  } catch (error) {
-    console.error("Error fetching recent matches:", error);
-  }
+        // Fade in the list
+        list.classList.remove("hidden");
+      })
+      .catch((error) => {
+        console.error("Error fetching recent matches:", error);
+      });
+  }, 150); // Match the duration of the CSS transition
 }
 
 
@@ -329,7 +345,13 @@ async function selectPlayer(playerName) {
 
 async function showPlayerMatches(playerName) {
   const list = document.getElementById("recentMatches");
-  list.innerHTML = ""; // Clear the list
+  const heading = document.getElementById("recentMatchesHeading");
+
+  // Fade out the heading
+  heading.classList.add("hidden");
+
+  // Add the 'hidden' class to fade out the list
+  list.classList.add("hidden");
 
   try {
     const snapshot = await db.collection("matches")
@@ -347,11 +369,22 @@ async function showPlayerMatches(playerName) {
     const matches = [...snapshot.docs, ...snapshotB.docs];
     matches.sort((a, b) => b.data().timestamp - a.data().timestamp); // Sort by timestamp
 
-    matches.forEach(doc => {
-      const match = doc.data();
-      const li = createMatchListItem(match, playerName);
-      list.appendChild(li);
-    });
+    // Wait for the fade-out transition to complete
+    setTimeout(() => {
+      // Update the heading text
+      heading.textContent = `Recent Matches of ${playerName}`;
+      heading.classList.remove("hidden"); // Fade in the heading
+
+      list.innerHTML = ""; // Clear the list
+      matches.forEach(doc => {
+        const match = doc.data();
+        const li = createMatchListItem(match, playerName);
+        list.appendChild(li);
+      });
+
+      // Remove the 'hidden' class to fade in the list
+      list.classList.remove("hidden");
+    }, 150); // Match the duration of the CSS transition
   } catch (error) {
     console.error("Error fetching matches for player:", error);
   }
