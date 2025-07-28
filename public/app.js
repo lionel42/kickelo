@@ -13,6 +13,67 @@ const db = firebase.firestore();
 
 const K = 40;
 
+// Modal elements
+const btnSet = document.getElementById('btnSetActive');
+const backdrop = document.getElementById('modalBackdrop');
+const modalBody = document.getElementById('modalBody');
+const btnSave = document.getElementById('saveActive');
+const btnCancel = document.getElementById('cancelActive');
+
+// Firestore references
+const sessionRef = db.collection('meta').doc('session');
+
+// Open modal and load checkboxes
+btnSet.addEventListener('click', openModal);
+btnSuggest.addEventListener('click', () => {
+  // your suggest logic...
+});
+
+async function openModal() {
+  modalBody.innerHTML = '';
+
+  // Load all players
+  const snapshot = await db.collection('players').orderBy('name').get();
+  const players = snapshot.docs.map(d => d.data().name);
+
+  // Load saved active list
+  const doc = await sessionRef.get();
+  const active = doc.exists && doc.data().activePlayers || [];
+
+  // Build checkboxes
+  players.forEach(name => {
+    const lbl = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = name;
+    if (active.includes(name)) cb.checked = true;
+    lbl.appendChild(cb);
+    lbl.appendChild(document.createTextNode(name));
+    modalBody.appendChild(lbl);
+  });
+
+  backdrop.style.display = 'flex';
+}
+
+btnSave.addEventListener('click', async () => {
+  const checked = [...modalBody.querySelectorAll('input[type=checkbox]:checked')]
+    .map(cb => cb.value);
+  await sessionRef.set({ activePlayers: checked });
+  backdrop.style.display = 'none';
+});
+
+btnCancel.addEventListener('click', () => {
+  backdrop.style.display = 'none';
+});
+
+// On load: if no session doc, prompt once
+window.onload = async () => {
+  const doc = await sessionRef.get();
+  if (!doc.exists) openModal();
+  loadLeaderboard();
+  loadPlayerDropdowns();
+};
+
 async function getOrCreatePlayer(name) {
   const docRef = db.collection("players").doc(name);
   const doc = await docRef.get();
@@ -140,7 +201,7 @@ document.getElementById("swapTeams").addEventListener("click", () => {
   [tA2.value, tB2.value] = [tB2.value, tA2.value];
 })
 
-document.getElementById("matchForm").addEventListener("submit", async (e) => {
+document.getElementById("submitMatchBtn").addEventListener("click", async (e) => {
 
   e.preventDefault();
   const tA1 = document.getElementById("teamA1").value.trim();
