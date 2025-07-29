@@ -14,8 +14,7 @@ const db = firebase.firestore();
 const K = 40;  // K-factor for ELO rating
 
 const MS = 1000;                    // milliseconds
-// const SESSION_GAP = 20 * 60 * MS;   // 20 minutes in ms
-const SESSION_GAP = 20 * 20 * 60 * MS;   // 20 minutes in ms
+const SESSION_GAP = 20 * 60 * MS;   // 20 minutes in ms
 
 // Modal elements
 const btnSet = document.getElementById('btnSetActive');
@@ -150,11 +149,11 @@ function scorePairing(p, data) {
   const w = {
     sessionPlays: 1000.0,
     sessionTeammateRepeat: 100.0, // typical value 0-2
-    historicTeammateRepeat: 0, // leave this
+    historicTeammateRepeat: 0.0,    // disable for now, hard to normalize
     sessionOpponentRepeat: 40.0,  // typical value 0-2
-    historicOpponentRepeat: 10.0,
-    intraTeamEloDiff: 0.2, // typical value 0-300
-    interTeamEloDiff: 0.2, // typical value 0-300
+    historicOpponentRepeat: 0.0,  // disable for now, hard to normalize
+    intraTeamEloDiff: 0.1, // typical value 0-300
+    interTeamEloDiff: 0.3, // typical value 0-300
   };
 
   const { teamA, teamB } = p;
@@ -280,12 +279,69 @@ btnSuggest.addEventListener('click', async () => {
   // store for next steps
   window.__pairingData.candidates = scored;
 
-  // 5. show best pairing in form
   const best = scored[0].pairing;
-  document.getElementById('teamA1').value = best.teamA[0];
-  document.getElementById('teamA2').value = best.teamA[1];
-  document.getElementById('teamB1').value = best.teamB[0];
-  document.getElementById('teamB2').value = best.teamB[1];
+
+  //Build side‑counts from all matches
+  function buildSideCounts(allMatches) {
+    const countA = {}, countB = {};
+    allMatches.forEach(m => {
+      m.teamA.forEach(p => {
+        countA[p] = (countA[p] || 0) + 1;
+        if (!(p in countB)) countB[p] = 0;
+      });
+      m.teamB.forEach(p => {
+        countB[p] = (countB[p] || 0) + 1;
+        if (!(p in countA)) countA[p] = 0;
+      });
+    });
+    return { countA, countB };
+  }
+
+  // Cost of giving player p a red slot now:
+  function redCost(p, countA, countB) {
+    const a = countA[p] || 0;
+    const b = countB[p] || 0;
+    const newPctA = (a + 1) / (a + b + 1);
+    return Math.abs(newPctA - 0.5);
+  }
+
+  // Cost for blue slot now:
+  function blueCost(p, countA, countB) {
+    const a = countA[p] || 0;
+    const b = countB[p] || 0;
+    const newPctA = a / (a + b + 1);
+    return Math.abs(newPctA - 0.5);
+  }
+
+  // Decide best assignment
+  const { countA, countB } = buildSideCounts(data.allMatches);
+  const { teamA, teamB } = best;
+
+  // Option 1: as is (teamA→red, teamB→blue)
+  let cost1 = 0;
+  teamA.forEach(p => cost1 += redCost(p, countA, countB));
+  teamB.forEach(p => cost1 += blueCost(p, countA, countB));
+
+  // Option 2: swap sides
+  let cost2 = 0;
+  teamA.forEach(p => cost2 += blueCost(p, countA, countB));
+  teamB.forEach(p => cost2 += redCost(p, countA, countB));
+
+  // Apply the lower‑cost option
+  let redTeam, blueTeam;
+  if (cost1 <= cost2) {
+    redTeam  = teamA;
+    blueTeam = teamB;
+  } else {
+    redTeam  = teamB;
+    blueTeam = teamA;
+  }
+
+  // Fill the dropdowns
+  document.getElementById('teamA1').value = redTeam[0];
+  document.getElementById('teamA2').value = redTeam[1];
+  document.getElementById('teamB1').value = blueTeam[0];
+  document.getElementById('teamB2').value = blueTeam[1];
 });
 
 
@@ -465,6 +521,8 @@ document.getElementById("submitMatchBtn").addEventListener("click", async (e) =>
   const winner = document.getElementById("winner").value;
 
   // Validate inputs
+  // Check if a winner is selected
+  if (!winner) return alert("You must select a winner");
   // Check if all players are selected
   if (!tA1 || !tA2 || !tB1 || !tB2) return alert("Enter all player names");
   // Check if all players are different
@@ -525,7 +583,6 @@ async function showLeaderboard() {
   const list = document.getElementById("leaderboard");
   list.innerHTML = "";
   const snapshot = await db.collection("players").orderBy("elo", "desc").get();
-  console.log(snapshot)
   let index = 0; // Initialize index for styling
   snapshot.forEach((doc) => {
     const { name, elo } = doc.data();
