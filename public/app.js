@@ -11,7 +11,11 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-const K = 40;
+const K = 40;  // K-factor for ELO rating
+
+const MS = 1000;                    // milliseconds
+// const SESSION_GAP = 20 * 60 * MS;   // 20 minutes in ms
+const SESSION_GAP = 20 * 20 * 60 * MS;   // 20 minutes in ms
 
 // Modal elements
 const btnSet = document.getElementById('btnSetActive');
@@ -25,10 +29,267 @@ const sessionRef = db.collection('meta').doc('session');
 
 // Open modal and load checkboxes
 btnSet.addEventListener('click', openModal);
-btnSuggest.addEventListener('click', () => {
-  // your suggest logic...
+
+// 1. Load the complete match history (ordered by timestamp asc)
+async function loadAllMatches() {
+  const snap = await db.collection('matches')
+    .orderBy('timestamp', 'asc')
+    .get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+// 2. Split out the “current session” by looking for gaps >20min
+function splitSession(matches) {
+  if (!matches.length) return { session: [], historic: [] };
+  const now = Date.now();
+  // find where recent play stops (gap >20min between successive)
+  let cutoffIndex = matches.length;
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const prevTs = i > 0 ? matches[i - 1].timestamp : matches[0].timestamp;
+    const gap = matches[i].timestamp - prevTs;
+    // if last match itself older than 20m ago, no session
+    if (i === matches.length - 1 && now - matches[i].timestamp > SESSION_GAP) {
+      cutoffIndex = matches.length;
+      break;
+    }
+    if (gap > SESSION_GAP) {
+      cutoffIndex = i;
+      break;
+    }
+  }
+  const session = matches.slice(cutoffIndex);
+  const historic = matches.slice(0, cutoffIndex);
+  return { session, historic };
+}
+
+// 3. Count how many times each active player played in session
+function countPlaysPerPlayer(sessionMatches, activePlayers) {
+  const count = {};
+  activePlayers.forEach(n => count[n] = 0);
+  sessionMatches.forEach(m => {
+    [...m.teamA, ...m.teamB]
+      .filter(p => activePlayers.includes(p))
+      .forEach(p => count[p]++);
+  });
+  return count;
+}
+
+// 4. Co‑play and opposition counts
+function buildCoAndOppCounts(matches, activePlayers) {
+  // init maps
+  const withCount = {}, againstCount = {};
+  activePlayers.forEach(a => {
+    withCount[a] = {};    // withCount[a][b] = times a & b were team‑mates
+    againstCount[a] = {}; // againstCount[a][b] = times a played opposite b
+    activePlayers.forEach(b => {
+      if (a !== b) {
+        withCount[a][b] = 0;
+        againstCount[a][b] = 0;
+      }
+    });
+  });
+
+  matches.forEach(m => {
+    const A = m.teamA, B = m.teamB;
+    // team‑mates
+    [A, B].forEach(team => {
+      team.forEach(p1 => team.forEach(p2 => {
+        if (p1 !== p2 && withCount[p1] && withCount[p2]) {
+          withCount[p1][p2]++;
+        }
+      }));
+    });
+    // opponents
+    A.forEach(pA => B.forEach(pB => {
+      if (againstCount[pA] && againstCount[pB]) {
+        againstCount[pA][pB]++;
+        againstCount[pB][pA]++;
+      }
+    }));
+  });
+
+  return { withCount, againstCount };
+}
+
+// 5. Generate all possible unique 2‑vs‑2 pairings
+function generatePairings(activePlayers) {
+  const pairings = [];
+  const n = activePlayers.length;
+  // choose 4 distinct players i<j<k<l
+  for (let a = 0; a < n; a++) {
+    for (let b = a + 1; b < n; b++) {
+      for (let c = b + 1; c < n; c++) {
+        for (let d = c + 1; d < n; d++) {
+          const quad = [activePlayers[a], activePlayers[b], activePlayers[c], activePlayers[d]];
+          // split quad into two teams of two
+          const teams = [
+            [[quad[0], quad[1]], [quad[2], quad[3]]],
+            [[quad[0], quad[2]], [quad[1], quad[3]]],
+            [[quad[0], quad[3]], [quad[1], quad[2]]],
+          ];
+          teams.forEach(t => pairings.push({ teamA: t[0], teamB: t[1] }));
+        }
+      }
+    }
+  }
+  return pairings;
+}
+
+// 6. Scoring function
+function scorePairing(p, data) {
+  const {
+    playsCount,
+    countsSession,
+    countsHistoric,
+    sessionMatches,
+    historicMatches,
+    eloMap // build a map of latest Elo: name->rating
+  } = data;
+
+  // weights (adjust as you like)
+  const w = {
+    sessionPlays: 1000.0,
+    sessionTeammateRepeat: 100.0, // typical value 0-2
+    historicTeammateRepeat: 0, // leave this
+    sessionOpponentRepeat: 40.0,  // typical value 0-2
+    historicOpponentRepeat: 10.0,
+    intraTeamEloDiff: 0.2, // typical value 0-300
+    interTeamEloDiff: 0.2, // typical value 0-300
+  };
+
+  const { teamA, teamB } = p;
+  // 3. sum of plays in this session
+  const playsSess = playsCount[teamA[0]] + playsCount[teamA[1]] +
+                    playsCount[teamB[0]] + playsCount[teamB[1]];
+
+  // 4. teammate repeats
+  const repSessA = countsSession.withCount[teamA[0]][teamA[1]];
+  const repSessB = countsSession.withCount[teamB[0]][teamB[1]];
+  const repSess = repSessA + repSessB;
+  // 4a. historic teammate repeats
+  const repHistA = countsHistoric.withCount[teamA[0]][teamA[1]];
+  const repHistB = countsHistoric.withCount[teamB[0]][teamB[1]];
+  const repHist = repHistA + repHistB;
+
+  // 5. opponent repeats (sum over all cross‑pairs)
+  let oppRepSess = 0;
+  teamA.forEach(a => teamB.forEach(b => {
+    oppRepSess += countsSession.againstCount[a][b];
+  }));
+  // 5a. historic opponent repeats, normalized by total plays
+  let oppRepHist = 0;
+  teamA.forEach(a => teamB.forEach(b => {
+    oppRepHist += countsSession.againstCount[a][b];
+  }));
+
+  // 6. intra‑team Elo difference
+  const eloA0 = eloMap[teamA[0]], eloA1 = eloMap[teamA[1]];
+  const eloB0 = eloMap[teamB[0]], eloB1 = eloMap[teamB[1]];
+  const diffA = Math.abs(eloA0 - eloA1);
+  const diffB = Math.abs(eloB0 - eloB1);
+  const intraDiff = diffA + diffB;
+
+  // 7. inter‑team Elo difference (match balance)
+  const avgA = (eloA0 + eloA1) / 2;
+  const avgB = (eloB0 + eloB1) / 2;
+  const interDiff = Math.abs(avgA - avgB);
+
+  // weighted sum (we negate factors we want to minimize)
+  return 0
+    - w.sessionPlays           * playsSess
+    - w.sessionTeammateRepeat  * repSess
+    - w.historicTeammateRepeat * repHist
+    - w.sessionOpponentRepeat  * oppRepSess
+    - w.historicOpponentRepeat * oppRepHist
+    - w.intraTeamEloDiff       * intraDiff
+    - w.interTeamEloDiff       * interDiff;
+}
+
+// Inject Elo map from Firestore players
+async function loadEloMap(activePlayers) {
+  const eloMap = {};
+  const snaps = await db.collection('players')
+    .where('__name__', 'in', activePlayers)
+    .get();
+  snaps.forEach(doc => eloMap[doc.id] = doc.data().elo);
+  return eloMap;
+}
+
+// Main handler
+btnSuggest.addEventListener('click', async () => {
+  // fetch active players
+  const sessDoc = await db.collection('meta').doc('session').get();
+  const activePlayers = (sessDoc.exists && sessDoc.data().activePlayers) || [];
+  console.log('Active players:', activePlayers);
+
+  // 1. load all matches
+  const allMatches = await loadAllMatches();
+  console.log('Total matches:', allMatches.length);
+
+  // 2. split into session vs historic
+  const { session: sessionMatches, historic: historicMatches } = splitSession(allMatches);
+  console.log('Session matches:', sessionMatches.length, 'Historic:', historicMatches.length);
+
+  // 3. count plays per player in this session
+  const playsCount = countPlaysPerPlayer(sessionMatches, activePlayers);
+  console.log('Plays/session:', playsCount);
+
+  // 4. co‑play & opposition counts
+  const countsSession = buildCoAndOppCounts(sessionMatches, activePlayers);
+  const countsHistoric = buildCoAndOppCounts(historicMatches, activePlayers);
+  console.log('Session with/against:', countsSession);
+  console.log('Historic with/against:', countsHistoric);
+
+  // expose for debugging
+  window.__pairingData = {
+    activePlayers,
+    allMatches,
+    sessionMatches,
+    historicMatches,
+    playsCount,
+    countsSession,
+    countsHistoric
+  };
+
+  const data = window.__pairingData;
+  // load Elo ratings
+  data.eloMap = await loadEloMap(data.activePlayers);
+
+  // 1. generate
+  const candidates = generatePairings(data.activePlayers);
+  console.log(`Generated ${candidates.length} pairings`);
+
+  // 2. score
+  const scored = candidates.map(p => ({
+    pairing: p,
+    score: scorePairing(p, data)
+  }));
+
+  // 3. sort descending (highest = best)
+  scored.sort((a, b) => b.score - a.score);
+
+  // 4. log top 5
+  console.log('Top 5 pairings:');
+  scored.slice(0, 5).forEach((s, i) => {
+    console.log(
+      `#${i+1} [${s.pairing.teamA.join('&')} vs ${s.pairing.teamB.join('&')}] ` +
+      `score=${s.score.toFixed(2)}`
+    );
+  });
+
+  // store for next steps
+  window.__pairingData.candidates = scored;
+
+  // 5. show best pairing in form
+  const best = scored[0].pairing;
+  document.getElementById('teamA1').value = best.teamA[0];
+  document.getElementById('teamA2').value = best.teamA[1];
+  document.getElementById('teamB1').value = best.teamB[0];
+  document.getElementById('teamB2').value = best.teamB[1];
 });
 
+
+// Modal backdrop and body elements
 async function openModal() {
   modalBody.innerHTML = '';
 
@@ -66,13 +327,6 @@ btnCancel.addEventListener('click', () => {
   backdrop.style.display = 'none';
 });
 
-// On load: if no session doc, prompt once
-window.onload = async () => {
-  const doc = await sessionRef.get();
-  if (!doc.exists) openModal();
-  loadLeaderboard();
-  loadPlayerDropdowns();
-};
 
 async function getOrCreatePlayer(name) {
   const docRef = db.collection("players").doc(name);
@@ -470,8 +724,10 @@ async function updateMatchDisplay() {
   }
 }
 
-// show leader board and load player dropdowns on page load
+// On load: if no session doc, prompt once
 window.onload = async () => {
+  const doc = await sessionRef.get();
+  if (!doc.exists) openModal();
   await loadPlayerDropdowns();
   await showLeaderboard();
   await showRecentMatches();
