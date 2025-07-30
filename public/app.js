@@ -19,6 +19,7 @@ const SESSION_GAP = 20 * 60 * MS;   // 20 minutes in ms
 // Modal elements
 // const btnSet = document.getElementById('btnSetActive');
 const backdrop = document.getElementById('modalBackdrop');
+const modal= document.getElementById('activeModal');
 const modalBody = document.getElementById('modalBody');
 const btnSave = document.getElementById('saveActive');
 const btnCancel = document.getElementById('cancelActive');
@@ -351,6 +352,10 @@ async function suggestPairing() {
 
 // Modal backdrop and body elements
 async function showPlayerModal(triggerPairing = false) {
+  backdrop.style.display = 'flex';
+  // hide modal body for now
+  modal.style.display = 'none';
+
   modalBody.innerHTML = '';
 
   // Load all players
@@ -383,8 +388,8 @@ async function showPlayerModal(triggerPairing = false) {
         await suggestPairing();
       }
     }
-
-  backdrop.style.display = 'flex';
+  // Show modal body
+  modal.style.display = '';
 }
 
 // function showPlayerModal(triggerPairing = false) {
@@ -838,8 +843,6 @@ async function updateMatchDisplay() {
 
 // On load: if no session doc, prompt once
 window.onload = async () => {
-  // const doc = await sessionRef.get();
-  // if (!doc.exists) openModal();
   await loadPlayerDropdowns();
   await showLeaderboard();
   await showRecentMatches();
