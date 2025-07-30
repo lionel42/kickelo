@@ -17,7 +17,7 @@ const MS = 1000;                    // milliseconds
 const SESSION_GAP = 20 * 60 * MS;   // 20 minutes in ms
 
 // Modal elements
-const btnSet = document.getElementById('btnSetActive');
+// const btnSet = document.getElementById('btnSetActive');
 const backdrop = document.getElementById('modalBackdrop');
 const modalBody = document.getElementById('modalBody');
 const btnSave = document.getElementById('saveActive');
@@ -27,7 +27,7 @@ const btnCancel = document.getElementById('cancelActive');
 const sessionRef = db.collection('meta').doc('session');
 
 // Open modal and load checkboxes
-btnSet.addEventListener('click', openModal);
+// btnSet.addEventListener('click', openModal);
 
 // 1. Load the complete match history (ordered by timestamp asc)
 async function loadAllMatches() {
@@ -215,7 +215,11 @@ async function loadEloMap(activePlayers) {
 }
 
 // Main handler
-btnSuggest.addEventListener('click', async () => {
+document.getElementById('btnSuggest').onclick = () => {
+  showPlayerModal(true); // open modal in "pairing" mode
+};
+
+async function suggestPairing() {
   // fetch active players
   const sessDoc = await db.collection('meta').doc('session').get();
   const activePlayers = (sessDoc.exists && sessDoc.data().activePlayers) || [];
@@ -342,11 +346,11 @@ btnSuggest.addEventListener('click', async () => {
   document.getElementById('teamA2').value = redTeam[1];
   document.getElementById('teamB1').value = blueTeam[0];
   document.getElementById('teamB2').value = blueTeam[1];
-});
+}
 
 
 // Modal backdrop and body elements
-async function openModal() {
+async function showPlayerModal(triggerPairing = false) {
   modalBody.innerHTML = '';
 
   // Load all players
@@ -369,15 +373,66 @@ async function openModal() {
     modalBody.appendChild(lbl);
   });
 
+  // Attach handler
+  btnSave.onclick = async () => {
+    const checked = [...modalBody.querySelectorAll('input[type=checkbox]:checked')]
+    .map(cb => cb.value);
+    await sessionRef.set({ activePlayers: checked });
+    backdrop.style.display = 'none';
+      if (triggerPairing) {
+        await suggestPairing();
+      }
+    }
+
   backdrop.style.display = 'flex';
 }
 
-btnSave.addEventListener('click', async () => {
-  const checked = [...modalBody.querySelectorAll('input[type=checkbox]:checked')]
-    .map(cb => cb.value);
-  await sessionRef.set({ activePlayers: checked });
-  backdrop.style.display = 'none';
-});
+// function showPlayerModal(triggerPairing = false) {
+//   const modal = document.getElementById('playerModal');
+//   const list = document.getElementById('playerList');
+//   const saveBtn = document.getElementById('savePlayersBtn');
+//
+//   // Clear existing list
+//   list.innerHTML = '';
+//
+//   // Load player names
+//   getPlayerNames().then(playerNames => {
+//     getActivePlayers().then(active => {
+//       playerNames.sort();
+//       playerNames.forEach(name => {
+//         const label = document.createElement('label');
+//         label.innerHTML = `
+//           <input type="checkbox" value="${name}" ${active.includes(name) ? 'checked' : ''}>
+//           ${name}
+//         `;
+//         list.appendChild(label);
+//       });
+//
+//       // Show modal
+//       modal.style.display = 'block';
+//
+//       // Attach handler
+//       saveBtn.onclick = () => {
+//         const checkboxes = list.querySelectorAll('input[type=checkbox]');
+//         const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+//         saveActivePlayers(selected).then(() => {
+//           modal.style.display = 'none';
+//           if (triggerPairing) {
+//             suggestPairing();
+//           }
+//         });
+//       };
+//     });
+//   });
+// }
+
+
+// btnSave.addEventListener('click', async () => {
+//   const checked = [...modalBody.querySelectorAll('input[type=checkbox]:checked')]
+//     .map(cb => cb.value);
+//   await sessionRef.set({ activePlayers: checked });
+//   backdrop.style.display = 'none';
+// });
 
 btnCancel.addEventListener('click', () => {
   backdrop.style.display = 'none';
@@ -783,8 +838,8 @@ async function updateMatchDisplay() {
 
 // On load: if no session doc, prompt once
 window.onload = async () => {
-  const doc = await sessionRef.get();
-  if (!doc.exists) openModal();
+  // const doc = await sessionRef.get();
+  // if (!doc.exists) openModal();
   await loadPlayerDropdowns();
   await showLeaderboard();
   await showRecentMatches();

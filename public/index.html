@@ -10,11 +10,7 @@
 </head>
 <body>
   <h1>Kicker Elo Tracker</h1>
-  <div style="display: flex; gap: 10px;">
-    <button id="btnSetActive">Set Active Players</button>
-    <button id="btnSuggest">Suggest Pairing</button>
-  </div><br>
-  <form id="matchForm">
+  <div class="boxed" id="matchForm">
     <label>Team Red:
       <select id="teamA1"></select>
       <select id="teamA2"></select>
@@ -31,10 +27,11 @@
       </select>
     </label><br>
     <div style="display: flex; gap: 10px;">
-      <button type="button" id="swapTeams">Swap Teams</button>
-      <button type="submit" id="submitMatchBtn">Submit Match</button>
+      <button type="button" id="swapTeams">Swap</button>
+      <button id="btnSuggest">Suggest</button>
+      <button type="submit" id="submitMatchBtn">Submit</button>
     </div>
-  </form>
+  </div>
 
   <h2>Leaderboard</h2>
   <ul id="leaderboard" class="shared-list"></ul>
@@ -46,13 +43,13 @@
   <!-- Modal Backdrop + Panel -->
   <div id="modalBackdrop">
     <div id="activeModal">
-      <header>Select Active Players</header>
+      <header>Select Players</header>
       <div class="body" id="modalBody">
         <!-- Checkboxes will be injected here -->
       </div>
       <footer style="display: flex; gap: 10px;">
-        <button id="saveActive">Save</button>
         <button id="cancelActive">Cancel</button>
+        <button id="saveActive">Confirm</button>
       </footer>
     </div>
   </div>

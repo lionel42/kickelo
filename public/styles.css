@@ -32,7 +32,7 @@ h2 {
 }
 
 /* Form Styling */
-form {
+div.boxed {
   background: #fff;
   padding: 20px;
   border-radius: 8px;
