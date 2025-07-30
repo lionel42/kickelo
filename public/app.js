@@ -795,20 +795,24 @@ async function showPlayerMatches(playerName) {
   list.classList.add("hidden");
 
   try {
+    const n_matches = 10
     const snapshot = await db.collection("matches")
       .where("teamA", "array-contains", playerName)
       .orderBy("timestamp", "desc")
-      .limit(10)
+      .limit(n_matches)
       .get();
 
     const snapshotB = await db.collection("matches")
       .where("teamB", "array-contains", playerName)
       .orderBy("timestamp", "desc")
-      .limit(10)
+      .limit(n_matches)
       .get();
 
     const matches = [...snapshot.docs, ...snapshotB.docs];
     matches.sort((a, b) => b.data().timestamp - a.data().timestamp); // Sort by timestamp
+
+    // take only the most recent n_matches
+    matches.splice(n_matches);
 
     // Wait for the fade-out transition to complete
     setTimeout(() => {
