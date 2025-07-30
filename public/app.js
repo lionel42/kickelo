@@ -31,8 +31,10 @@ const sessionRef = db.collection('meta').doc('session');
 // btnSet.addEventListener('click', openModal);
 
 // 1. Load the complete match history (ordered by timestamp asc)
-async function loadAllMatches() {
+async function loadRecentMatches(timePeriod = 36 * 60 * 60 * 1000) { // Default: last 36 hours
+  const cutoffTimestamp = Date.now() - timePeriod;
   const snap = await db.collection('matches')
+    .where('timestamp', '>=', cutoffTimestamp)
     .orderBy('timestamp', 'asc')
     .get();
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -150,9 +152,9 @@ function scorePairing(p, data) {
   const w = {
     sessionPlays: 1000.0,
     sessionTeammateRepeat: 100.0, // typical value 0-2
-    historicTeammateRepeat: 0.0,    // disable for now, hard to normalize
-    sessionOpponentRepeat: 40.0,  // typical value 0-2
-    historicOpponentRepeat: 0.0,  // disable for now, hard to normalize
+    historicTeammateRepeat: 20.0, // typical value 0-6
+    sessionOpponentRepeat: 40.0,  // typical value 0-4
+    historicOpponentRepeat: 8.0,  // typical value 0-12
     intraTeamEloDiff: 0.1, // typical value 0-300
     interTeamEloDiff: 0.3, // typical value 0-300
   };
@@ -226,8 +228,8 @@ async function suggestPairing() {
   const activePlayers = (sessDoc.exists && sessDoc.data().activePlayers) || [];
   console.log('Active players:', activePlayers);
 
-  // 1. load all matches
-  const allMatches = await loadAllMatches();
+  // 1. load all matches in the last 36 hours
+  const allMatches = await loadRecentMatches();
   console.log('Total matches:', allMatches.length);
 
   // 2. split into session vs historic
