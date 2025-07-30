@@ -108,24 +108,24 @@ button:hover {
 
 /* Metallic Effects for Top 3 Spots */
 .gold {
-  background: linear-gradient(45deg, #ffe750, #ffd700, #e6b800, #bfa600) !important;
-  color: #333 !important;
+  background: linear-gradient(45deg, #bfa600, #e6b800, #ffd700, #ffe750) !important;
+  color: #fff !important;
   font-weight: bold;
-  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);
+  text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.7);
 }
 
 .silver {
-  background: linear-gradient(45deg, #e0e0e0, #c0c0c0, #a9a9a9, #8c8c8c) !important;
-  color: #333 !important;
+  background: linear-gradient(45deg, #8c8c8c, #a9a9a9, #c0c0c0, #e0e0e0) !important;
+  color: #fff !important;
   font-weight: bold;
-  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);
+  text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.7);
 }
 
 .bronze {
-  background: linear-gradient(45deg, #dcbb95, #cd7f32, #a97142, #a96e33) !important;
-  color: #333 !important;
+  background: linear-gradient(45deg, #a96e33, #a97142, #cd7f32, #dcbb95) !important;
+  color: #fff !important;
   font-weight: bold;
-  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);
+  text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.7);
 }
 
 /* Responsive Design */
