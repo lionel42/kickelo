@@ -1,3 +1,5 @@
+/*https://paletton.com/#uid=72S0u0kanfz7isU9MlLd29hil6Z*/
+
 /* General Reset */
 body, h1, h2, ul, form, label, select, button {
   margin: 0;
@@ -7,60 +9,74 @@ body, h1, h2, ul, form, label, select, button {
 
 /* Body Styling */
 body {
-  font-family: Arial, sans-serif;
-
-  background-color: #f4f4f9;
-  color: #333;
+  font-family: Trebuchet MS, sans-serif;
+  background-color: #1b1b1b;
+  color: #eee;
   line-height: 1.6;
   padding: 20px;
   max-width: 600px;
   margin: 0 auto;
+  /* text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); */
 }
 
 /* Header Styling */
 h1 {
   text-align: center;
-  color: #444;
+  color: #ccc;
   margin-bottom: 20px;
+  /* text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); */
 }
 
 h2 {
   text-align: center;
-  color: #555;
+  color: #ccc;
   margin-top: 30px;
   margin-bottom: 10px;
+  /* text-shadow: 0 1.5px 3px rgba(0, 0, 0, 0.2); */
 }
 
 /* Form Styling */
 div.boxed {
-  background: #fff;
+  background: #333333;
   padding: 20px;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   margin-bottom: 20px;
 }
 
 label {
   display: block;
-  font-weight: bold;
-  margin-bottom: 10px;
+  /* font-weight: bold; */
+  /* margin-bottom: 10px; */
 }
 
 select {
   width: 100%;
   padding: 10px;
   margin-bottom: 15px;
-  border: 1px solid #ccc;
+  border: 1px solid #a4a4a4;
+  background-color: #454545;
   border-radius: 4px;
   font-size: 16px;
+  color: #eee
+}
+
+.blue_select {
+  border: 1px solid #6D898D;
+  background-color: #1B2B2D;
+}
+
+.red_select {
+  border: 1px solid #AD7C78;
+  background-color: #4A2E2C;
 }
 
 button {
   display: block;
   width: 100%;
   padding: 10px;
-  background-color: #007bff;
-  color: #fff;
+  background-color: #454545;
+  color: #eee;
   border: none;
   border-radius: 4px;
   font-size: 16px;
@@ -70,7 +86,7 @@ button {
 }
 
 button:hover {
-  background-color: #0056b3;
+  background-color: #6f6f6f;
 }
 
 /* Add fade-out and fade-in animations for the heading */
@@ -99,7 +115,7 @@ button:hover {
 }
 
 .shared-list li {
-  background: #fff;
+  background: #454545;
   margin-bottom: 10px;
   padding: 10px;
   border-radius: 4px;
@@ -109,24 +125,40 @@ button:hover {
 
 /* Metallic Effects for Top 3 Spots */
 .gold {
-  background: linear-gradient(45deg, #bfa600, #e6b800, #ffd700, #ffe750) !important;
-  color: #fff !important;
+  /* background: linear-gradient(45deg, #bfa600, #e6b800, #ffd700, #ffe750) !important; */
+  background: linear-gradient(45deg, #bfa60078, #e6b80078, #ffd70078, #ffe75078) !important;
+  color: #eee !important;
   font-weight: bold;
   text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.7);
+  
+  border-width: 3px; 
+  border-style: solid;
+  border-image-slice: 1;
+  border-image-source: linear-gradient(-45deg, #bfa600, #e6b800, #ffd700, #ffe750);
 }
 
 .silver {
-  background: linear-gradient(45deg, #8c8c8c, #a9a9a9, #c0c0c0, #e0e0e0) !important;
-  color: #fff !important;
+  background: linear-gradient(45deg, #8c8c8c78, #a9a9a978, #c0c0c078, #e0e0e078) !important;
+  color: #eee !important;
   font-weight: bold;
   text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.7);
+  border-width: 3px; 
+  border-style: solid;
+  border-image-slice: 1;
+  border-image-source: linear-gradient(-45deg, #8c8c8c, #a9a9a9, #c0c0c0, #e0e0e0);
+
 }
 
 .bronze {
-  background: linear-gradient(45deg, #a96e33, #a97142, #cd7f32, #dcbb95) !important;
-  color: #fff !important;
+  background: linear-gradient(45deg, #a96e3378, #a9714278, #cd7f3278, #dcbb9578) !important;
+  color: #eee !important;
   font-weight: bold;
   text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.7);
+  border-width: 3px; 
+  border-style: solid;
+  border-image-slice: 1;
+  border-image-source: linear-gradient(-45deg, #a96e33, #a97142, #cd7f32, #dcbb95);
+
 }
 
 /* Responsive Design */
@@ -149,7 +181,7 @@ button:hover {
 }
 
 .selected-player {
-  outline: 2px solid #444 !important;
+  outline: 2px solid #ccc !important;
 }
 
 /* Modal backdrop */
