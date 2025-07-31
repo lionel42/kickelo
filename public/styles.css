@@ -62,13 +62,13 @@ select {
 }
 
 .blue_select {
-  border: 1px solid #6D898D;
-  background-color: #1B2B2D;
+  border: 1px solid #6cabc2;
+  background-color: #314c56;
 }
 
 .red_select {
-  border: 1px solid #AD7C78;
-  background-color: #4A2E2C;
+  border: 1px solid #cf6b77;
+  background-color: #6A252D;
 }
 
 button {

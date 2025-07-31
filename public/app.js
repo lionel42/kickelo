@@ -666,8 +666,8 @@ async function showLeaderboard() {
 function createMatchListItem(match, highlighted_player = null) {
   const li = document.createElement("li");
 
-  let teamAPlayers = match.teamA.map(player => `<span style="color: #E6B6B2;">${player}</span>`).join(` <span style="color: #E6B6B2;">&</span> `);
-  let teamBPlayers = match.teamB.map(player => `<span style="color: #9ac3c7;">${player}</span>`).join(` <span style="color: #9ac3c7;">&</span> `);
+  let teamAPlayers = match.teamA.map(player => `<span style="color: #ce848c;">${player}</span>`).join(` <span style="color: #ce848c;">&</span> `);
+  let teamBPlayers = match.teamB.map(player => `<span style="color: #6cabc2;">${player}</span>`).join(` <span style="color: #6cabc2;">&</span> `);
 
   let winner = match.winner === "A" ? teamAPlayers : teamBPlayers;
   let loser = match.winner === "A" ? teamBPlayers : teamAPlayers;
@@ -683,11 +683,11 @@ function createMatchListItem(match, highlighted_player = null) {
     console.log(`Highlighting player: ${highlighted_player}`);
 
     if (isInTeamA) {
-      teamAPlayers = `<span style="color: #E6B6B2">${highlighted_player}</span>` +
-        (match.teamA.length > 1 ? ` <span style="color: #E6B6B2;">&</span> ` + match.teamA.filter(p => p !== highlighted_player).map(player => `<span style="color: #E6B6B2;">${player}</span>`).join(` <span style="color: #E6B6B2;">&</span> `): "");
+      teamAPlayers = `<span style="color: #ce848c">${highlighted_player}</span>` +
+        (match.teamA.length > 1 ? ` <span style="color: #ce848c;">&</span> ` + match.teamA.filter(p => p !== highlighted_player).map(player => `<span style="color: #ce848c;">${player}</span>`).join(` <span style="color: #ce848c;">&</span> `): "");
     } else if (isInTeamB) {
-      teamBPlayers = `<span style="color: #9ac3c7">${highlighted_player}</span>` +
-        (match.teamB.length > 1 ? ` <span style="color: #9ac3c7;">&</span> ` + match.teamB.filter(p => p !== highlighted_player).map(player => `<span style="color: #9ac3c7;">${player}</span>`).join(` <span style="color: #9ac3c7;">&</span> `): "");
+      teamBPlayers = `<span style="color: #6cabc2">${highlighted_player}</span>` +
+        (match.teamB.length > 1 ? ` <span style="color: #6cabc2;">&</span> ` + match.teamB.filter(p => p !== highlighted_player).map(player => `<span style="color: #6cabc2;">${player}</span>`).join(` <span style="color: #6cabc2;">&</span> `): "");
     }
     // Update winner and loser based on highlighted player
     if (match.winner === "B") {
