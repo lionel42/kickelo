@@ -229,3 +229,22 @@ button:hover {
 #activeModal footer button {
   margin-right: 0.5rem;
 }
+
+@keyframes flyIn {
+  0% {
+    transform: translate(-200px, -100px) rotate(0deg) scale(0.2);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(0, 0) rotate(1000deg) scale(1);
+    opacity: 1;
+  }
+}
+
+#football {
+  display: inline-block;
+  animation: flyIn 2s ease-out forwards;
+}

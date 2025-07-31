@@ -854,3 +854,8 @@ window.onload = async () => {
   await showRecentMatches();
   console.log("Page loaded and initialized.");
 };
+
+window.addEventListener('DOMContentLoaded', () => {
+  const football = document.getElementById('football');
+  football.style.animation = 'flyIn 2s ease-out forwards';
+});
