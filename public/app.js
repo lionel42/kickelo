@@ -492,7 +492,11 @@ async function loadPlayerDropdowns() {
       // Create default option
       const defaultOpt = document.createElement("option");
       defaultOpt.value = "";
-      defaultOpt.textContent = "Select player";
+      // set default option to {Color} {offense/defense}
+      const color = id.startsWith("teamA") ? "Red" : "Blue";
+      const role = id.endsWith("1") ? "defense" : "offense";
+      defaultOpt.textContent = `${color} ${role}`;
+      // defaultOpt.textContent = "Select player";
       select.appendChild(defaultOpt);
 
       // Add player options
@@ -571,6 +575,22 @@ document.getElementById("swapTeams").addEventListener("click", () => {
   // Swap values
   [tA1.value, tB1.value] = [tB1.value, tA1.value];
   [tA2.value, tB2.value] = [tB2.value, tA2.value];
+})
+
+document.getElementById("swapTeamA").addEventListener("click", () => {
+  const tA1 = document.getElementById("teamA1");
+  const tA2 = document.getElementById("teamA2");
+
+  // Swap values
+  [tA1.value, tA2.value] = [tA2.value, tA1.value];
+})
+
+document.getElementById("swapTeamB").addEventListener("click", () => {
+  const tB1 = document.getElementById("teamB1");
+  const tB2 = document.getElementById("teamB2");
+
+  // Swap values
+  [tB1.value, tB2.value] = [tB2.value, tB1.value];
 })
 
 document.getElementById("submitMatchBtn").addEventListener("click", async (e) => {
@@ -853,9 +873,31 @@ window.onload = async () => {
   await showLeaderboard();
   await showRecentMatches();
   console.log("Page loaded and initialized.");
-};
 
-window.addEventListener('DOMContentLoaded', () => {
+
   const football = document.getElementById('football');
   football.style.animation = 'flyIn 2s ease-out forwards';
+  // Remove the animation after it ends to allow re-triggering
+  football.addEventListener('animationend', function () {
+    football.style.animation = '';
+  }, { once: true });
+};
+
+// window.addEventListener('DOMContentLoaded', () => {
+//   const football = document.getElementById('football');
+//   football.style.animation = 'flyIn 2s ease-out forwards';
+//   // Remove the animation after it ends to allow re-triggering
+//   football.addEventListener('animationend', function () {
+//     football.style.animation = '';
+//   }, { once: true });
+// });
+
+document.getElementById('football').addEventListener('click', function () {
+  const football = this;
+  football.style.animation = 'spin 2s ease-in-out forwards';
+
+  // Remove the animation after it ends to allow re-triggering
+  football.addEventListener('animationend', function () {
+    football.style.animation = '';
+  }, { once: true });
 });

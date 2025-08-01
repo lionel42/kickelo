@@ -35,10 +35,30 @@ h2 {
   /* text-shadow: 0 1.5px 3px rgba(0, 0, 0, 0.2); */
 }
 
+.svg-wrapper {
+  position: relative;
+  width: 100%;         /* responsive width */
+  /*max-width: 600px;     !* optional max width *!*/
+  aspect-ratio: 1/1;  /* match your SVG viewBox ratio */
+  /*padding: 0; !* remove padding *!*/
+}
+
+.svg-wrapper svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.overlay-select {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+}
+
 /* Form Styling */
 div.boxed {
   background: #333333;
-  padding: 20px;
+  padding: 10px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   margin-bottom: 20px;
@@ -51,24 +71,62 @@ label {
 }
 
 select {
-  width: 100%;
-  padding: 10px;
-  margin-bottom: 15px;
-  border: 1px solid #a4a4a4;
+  width: 37%;
+  max-width: 150px;
+  min-height: 8%;
+  padding: 8px;
+  /*margin-bottom: 15px;*/
+  border: 2px solid #a4a4a4;
   background-color: #454545;
   border-radius: 4px;
   font-size: 16px;
-  color: #eee
+  color: #eee;
+  appearance: none;          /* Minimal styling */
+  -webkit-appearance: none;
+  -moz-appearance: none;
 }
 
 .blue_select {
-  border: 1px solid #6cabc2;
-  background-color: #314c56;
+  border: 2px solid #6cabc2;
+  background-color: rgba(49, 76, 86, 0.8);
+  text-align: right;
 }
 
 .red_select {
-  border: 1px solid #cf6b77;
-  background-color: #6A252D;
+  border: 2px solid #cf6b77;
+  background-color: rgba(106, 37, 45, 0.8);
+  text-align: left;
+}
+
+.invisible_swap_button {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: transparent; /* Hide text */
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  width: 10%;
+  height: 35%;
+}
+
+.invisible_swap_button:hover {
+  background-color: rgba(111, 111, 111, 0.11);
+}
+
+.score_select{
+  width: 12% !important;
+  height: 14% !important;
+  font-weight: bold;
+  padding: 1px;
+  /*font-size: 4.5vh;          !* Scales with viewport height *!*/
+  font-size: 2.5em !important;
+  text-align: center;        /* Horizontal centering */
+  text-align-last: center;   /* Some browsers need this too */
+  line-height: 1;            /* Compact vertical spacing */
 }
 
 button {
@@ -161,6 +219,25 @@ button:hover {
 
 }
 
+.selected-player {
+  outline: 2px solid #ccc !important;
+}
+
+.gold.selected-player {
+  outline: 2px solid white !important;
+  border-image-source: linear-gradient(white, white) !important;
+}
+
+.silver.selected-player {
+  outline: 2px solid white !important;
+  border-image-source: linear-gradient(white, white) !important;
+}
+
+.bronze.selected-player {
+  outline: 2px solid white !important;
+  border-image-source: linear-gradient(white, white) !important;
+}
+
 /* Responsive Design */
 @media (max-width: 600px) {
   body {
@@ -180,10 +257,6 @@ button:hover {
   }
 }
 
-.selected-player {
-  outline: 2px solid #ccc !important;
-}
-
 /* Modal backdrop */
 #modalBackdrop {
   position: fixed;
@@ -196,7 +269,7 @@ button:hover {
 }
 /* Modal panel */
 #activeModal {
-  background: white;
+  background: #454545;
   border-radius: 8px;
   max-width: 90%;
   width: 400px;
@@ -208,7 +281,7 @@ button:hover {
 #activeModal header,
 #activeModal footer {
   padding: 0.5rem 1rem;
-  background: #f2f2f2;
+  background: #333333;
 }
 #activeModal header {
   font-weight: bold;
@@ -226,25 +299,45 @@ button:hover {
 #activeModal .body input[type="checkbox"] {
   margin-right: 0.5rem;
 }
+#activeModal .body input[type="checkbox"]:checked {
+  accent-color: #6cabc2;
+}
 #activeModal footer button {
   margin-right: 0.5rem;
 }
 
 @keyframes flyIn {
   0% {
-    transform: translate(-200px, -100px) rotate(0deg) scale(0.2);
+    transform: translate(-200px, -0px) rotate(-1000deg) scale(0.2);
     opacity: 0;
   }
   50% {
     opacity: 1;
   }
   100% {
-    transform: translate(0, 0) rotate(1000deg) scale(1);
+    transform: translate(0, 0) rotate(0deg) scale(1);
     opacity: 1;
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: scale(1);
+    animation-timing-function: ease-in;
+  }
+  30% {
+    transform: scale(0.4);
+  }
+  60% {
+    transform: scale(1.15); /* Bounce back slightly */
+    animation-timing-function: ease-out;
+  }
+  100% {
+    transform: scale(1);
   }
 }
 
 #football {
   display: inline-block;
-  animation: flyIn 2s ease-out forwards;
+  /*animation: flyIn 2s ease-out forwards;*/
 }

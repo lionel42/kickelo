@@ -1,5 +1,4 @@
-- Dark Mode
-- Suggested Pairings
+- top down kicker match UI (see UISketch.svg)
 - Tournament Mode (difficult)
 - Better rating algorithm, maybe TrueSkill
 - Player Profiles, including win/loss records, synergies with team-mates in table format
