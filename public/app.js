@@ -600,17 +600,30 @@ document.getElementById("submitMatchBtn").addEventListener("click", async (e) =>
   const tA2 = document.getElementById("teamA2").value.trim();
   const tB1 = document.getElementById("teamB1").value.trim();
   const tB2 = document.getElementById("teamB2").value.trim();
-  const winner = document.getElementById("winner").value;
+
+  const goalsA = document.getElementById("teamAgoals").value.trim();
+  const goalsB = document.getElementById("teamBgoals").value.trim();
 
   // Validate inputs
-  // Check if a winner is selected
-  if (!winner) return alert("You must select a winner");
+  // Check if goals are valid numbers and convert them to integers
+  if (!/^\d+$/.test(goalsA) || !/^\d+$/.test(goalsB)) {
+      return alert("Goals must be valid numbers.");
+  }
+  // Convert goals to integers
+  const parsedGoalsA = parseInt(goalsA, 10);
+  const parsedGoalsB = parseInt(goalsB, 10);
+  // Check if there is a tie
+  if (parsedGoalsA === parsedGoalsB) {
+    return alert("Cannot submit a tie.");
+  }
   // Check if all players are selected
   if (!tA1 || !tA2 || !tB1 || !tB2) return alert("Enter all player names");
   // Check if all players are different
   if (new Set([tA1, tA2, tB1, tB2]).size < 4) {
       return alert("All players must be different");
   }
+
+  const winner = goalsA > goalsB ? "A" : "B";
 
   const [pA1, pA2, pB1, pB2] = await Promise.all([
     getOrCreatePlayer(tA1),
@@ -631,7 +644,9 @@ document.getElementById("submitMatchBtn").addEventListener("click", async (e) =>
   const winnerName = winner === "A" ? `${pA1.name} & ${pA2.name}` : `${pB1.name} & ${pB2.name}`;
   const loserName = winner === "A" ? `${pB1.name} & ${pB2.name}` : `${pA1.name} & ${pA2.name}`;
   const eloChange = Math.abs(delta);
-  const message = `Confirm match submission:\n\nWinners: ${winnerName}\nLosers: ${loserName}\nElo change: ${eloChange}\n\nDo you want to submit this match?`;
+  const winnerGoals = winner === "A" ? parsedGoalsA : parsedGoalsB;
+  const loserGoals = winner === "A" ? parsedGoalsB : parsedGoalsA;
+  const message = `Confirm match submission:\n\nWinners: ${winnerName}\nLosers: ${loserName}\nScore: ${winnerGoals}:${loserGoals}\nElo change: ${eloChange}\n\nDo you want to submit this match?`;
   if (!confirm(message)) {
       return;
   }
@@ -649,6 +664,8 @@ document.getElementById("submitMatchBtn").addEventListener("click", async (e) =>
     teamA: [tA1, tA2],
     teamB: [tB1, tB2],
     winner: winner,
+    goalsA: parseInt(goalsA, 10),
+    goalsB: parseInt(goalsB, 10),
     eloDelta: Math.abs(delta),
     timestamp: Date.now(),
   });
