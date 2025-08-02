@@ -15,6 +15,7 @@ const K = 40;  // K-factor for ELO rating
 
 const MS = 1000;                    // milliseconds
 const SESSION_GAP = 30 * 60 * MS;   // 30 minutes in ms
+const MAX_GOALS = 5
 
 // Modal elements
 // const btnSet = document.getElementById('btnSetActive');
@@ -591,6 +592,23 @@ document.getElementById("swapTeamB").addEventListener("click", () => {
 
   // Swap values
   [tB1.value, tB2.value] = [tB2.value, tB1.value];
+})
+
+
+document.getElementById("teamAgoals").addEventListener("change", async (e) => {
+  if(this.value === String(MAX_GOALS)) {
+    return
+  }
+  const other_goal_dropdown = document.getElementById("teamBgoals")
+  other_goal_dropdown.value = String(MAX_GOALS)
+})
+
+document.getElementById("teamBgoals").addEventListener("change", async (e) => {
+  if(this.value === String(MAX_GOALS)) {
+    return
+  }
+  const other_goal_dropdown = document.getElementById("teamAgoals")
+  other_goal_dropdown.value = String(MAX_GOALS)
 })
 
 document.getElementById("submitMatchBtn").addEventListener("click", async (e) => {
