@@ -1,5 +1,10 @@
 /*https://paletton.com/#uid=72S0u0kanfz7isU9MlLd29hil6Z*/
 
+/* Set tap highlight color to gray*/
+* {
+  -webkit-tap-highlight-color: rgba(255, 255, 255, 0.2);
+}
+
 /* General Reset */
 body, h1, h2, ul, form, label, select, button {
   margin: 0;
@@ -127,6 +132,12 @@ select {
   text-align: center;        /* Horizontal centering */
   text-align-last: center;   /* Some browsers need this too */
   line-height: 1;            /* Compact vertical spacing */
+}
+
+select:focus {
+  outline: none;
+  box-shadow: none;
+  /*border: none;*/
 }
 
 button {

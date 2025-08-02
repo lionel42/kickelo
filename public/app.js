@@ -578,7 +578,9 @@ document.getElementById("swapTeams").addEventListener("click", () => {
   [tA2.value, tB2.value] = [tB2.value, tA2.value];
 })
 
-document.getElementById("swapTeamA").addEventListener("click", () => {
+const swapRedTeamHitbox = document.getElementById("swap_red_team_hitbox")
+swapRedTeamHitbox.style.pointerEvents = "all";
+swapRedTeamHitbox.addEventListener("click", () => {
   const tA1 = document.getElementById("teamA1");
   const tA2 = document.getElementById("teamA2");
 
@@ -586,7 +588,9 @@ document.getElementById("swapTeamA").addEventListener("click", () => {
   [tA1.value, tA2.value] = [tA2.value, tA1.value];
 })
 
-document.getElementById("swapTeamB").addEventListener("click", () => {
+const swapBlueTeamHitbox = document.getElementById("swap_blue_team_hitbox")
+swapBlueTeamHitbox.style.pointerEvents = "all";
+swapBlueTeamHitbox.addEventListener("click", () => {
   const tB1 = document.getElementById("teamB1");
   const tB2 = document.getElementById("teamB2");
 
@@ -901,6 +905,77 @@ async function updateMatchDisplay() {
     await showRecentMatches(); // Show recent matches if no player is selected
   }
 }
+
+function makeRodDraggable(rod, options = {}) {
+  let isDragging = false;
+  let startX;
+  let initialMatrix;
+  let initialX; // saved once at load
+  let currentDX = 0; // tracks current offset from initialX
+
+  const {
+    speed = 0.4,
+    maxLeft = -15,
+    maxRight = 15
+  } = options;
+
+  // Parse initial transform once at setup
+  const tf = rod.getAttribute("transform");
+  const match = tf.match(/matrix\(([^)]+)\)/);
+  initialMatrix = match
+    ? match[1].split(',').map(parseFloat)
+    : [1, 0, 0, 1, 0, 0];
+  initialX = initialMatrix[4];
+
+  rod.addEventListener("mousedown", startDrag);
+  rod.addEventListener("touchstart", startDrag, { passive: false });
+
+  function startDrag(e) {
+    e.preventDefault();
+    isDragging = true;
+    startX = e.touches ? e.touches[0].clientX : e.clientX;
+
+    window.addEventListener("mousemove", drag);
+    window.addEventListener("mouseup", endDrag);
+    window.addEventListener("touchmove", drag, { passive: false });
+    window.addEventListener("touchend", endDrag);
+  }
+
+  function drag(e) {
+    if (!isDragging) return;
+    e.preventDefault();
+
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const dx = (clientX - startX) * speed;
+    let newDX = currentDX + dx;
+
+    // Clamp relative to initialX
+    newDX = Math.max(maxLeft, Math.min(maxRight, newDX));
+
+    const newMatrix = [...initialMatrix];
+    newMatrix[4] = initialX + newDX;
+    rod.setAttribute("transform", `matrix(${newMatrix.join(',')})`);
+  }
+
+  function endDrag(e) {
+    isDragging = false;
+
+    // Update currentDX so we accumulate properly
+    const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+    const delta = (clientX - startX) * speed;
+    currentDX = Math.max(maxLeft, Math.min(maxRight, currentDX + delta));
+
+    window.removeEventListener("mousemove", drag);
+    window.removeEventListener("mouseup", endDrag);
+    window.removeEventListener("touchmove", drag);
+    window.removeEventListener("touchend", endDrag);
+  }
+}
+
+makeRodDraggable(document.getElementById("red-defense-rod"), options = {maxLeft: -7, maxRight: 5});
+makeRodDraggable(document.getElementById("red-offense-rod"), options = {maxLeft: -11, maxRight: 7});
+makeRodDraggable(document.getElementById("blue-defense-rod"), options = {maxLeft: -5, maxRight: 7});
+makeRodDraggable(document.getElementById("blue-offense-rod"), options = {maxLeft: -7, maxRight: 11});
 
 // On load: if no session doc, prompt once
 window.onload = async () => {
