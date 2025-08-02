@@ -14,7 +14,7 @@ const db = firebase.firestore();
 const K = 40;  // K-factor for ELO rating
 
 const MS = 1000;                    // milliseconds
-const SESSION_GAP = 20 * 60 * MS;   // 20 minutes in ms
+const SESSION_GAP = 30 * 60 * MS;   // 30 minutes in ms
 
 // Modal elements
 // const btnSet = document.getElementById('btnSetActive');
@@ -899,16 +899,6 @@ window.onload = async () => {
     football.style.animation = '';
   }, { once: true });
 };
-
-// window.addEventListener('DOMContentLoaded', () => {
-//   const football = document.getElementById('football');
-//   football.style.animation = 'flyIn 2s ease-out forwards';
-//   // Remove the animation after it ends to allow re-triggering
-//   football.addEventListener('animationend', function () {
-//     football.style.animation = '';
-//   }, { once: true });
-// });
-
 document.getElementById('football').addEventListener('click', function () {
   const football = this;
   football.style.animation = 'spin 2s ease-in-out forwards';
