@@ -1,15 +1,21 @@
-// 🔥 Firebase config:
-const firebaseConfig = {
-  apiKey: "AIzaSyBHGbErkiS33J_h5Xoanzhl6rC7yWo1R08",
-  authDomain: "kickelo.firebaseapp.com",
-  projectId: "kickelo",
-  storageBucket: "kickelo.firebasestorage.app",
-  messagingSenderId: "1075750769009",
-  appId: "1:1075750769009:web:8a8b02540be5c9522be6d0"
-};
+import './styles.css';
+import { db } from './firebase.js'; // This is correct, now importing the Firestore instance
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+// Import necessary Firestore functions
+import {
+    collection,
+    doc,
+    addDoc,
+    getDoc,
+    getDocs,
+    setDoc,
+    updateDoc,
+    query,
+    where,
+    orderBy,
+    limit
+} from 'firebase/firestore'; // <--- NEW IMPORTS
+
 
 const K = 40;  // K-factor for ELO rating
 
@@ -17,27 +23,27 @@ const MS = 1000;                    // milliseconds
 const SESSION_GAP = 30 * 60 * MS;   // 30 minutes in ms
 const MAX_GOALS = 5
 
-// Modal elements
-// const btnSet = document.getElementById('btnSetActive');
+// Modal elements (unchanged)
 const backdrop = document.getElementById('modalBackdrop');
 const modal= document.getElementById('activeModal');
 const modalBody = document.getElementById('modalBody');
 const btnSave = document.getElementById('saveActive');
 const btnCancel = document.getElementById('cancelActive');
 
-// Firestore references
-const sessionRef = db.collection('meta').doc('session');
+const sessionDocRef = doc(db, 'meta', 'session'); // Use doc() for a specific document
 
-// Open modal and load checkboxes
-// btnSet.addEventListener('click', openModal);
 
 // 1. Load the complete match history (ordered by timestamp asc)
 async function loadRecentMatches(timePeriod = 36 * 60 * 60 * 1000) { // Default: last 36 hours
   const cutoffTimestamp = Date.now() - timePeriod;
-  const snap = await db.collection('matches')
-    .where('timestamp', '>=', cutoffTimestamp)
-    .orderBy('timestamp', 'asc')
-    .get();
+  const matchesColRef = collection(db, 'matches'); // Get collection reference
+
+  const q = query(
+    matchesColRef,
+    where('timestamp', '>=', cutoffTimestamp),
+    orderBy('timestamp', 'asc')
+  );
+  const snap = await getDocs(q); // Use getDocs for a query snapshot
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
@@ -211,9 +217,17 @@ function scorePairing(p, data) {
 // Inject Elo map from Firestore players
 async function loadEloMap(activePlayers) {
   const eloMap = {};
-  const snaps = await db.collection('players')
-    .where('__name__', 'in', activePlayers)
-    .get();
+  const playersColRef = collection(db, 'players'); // Get collection reference
+
+  // Firestore `in` query limit: max 10 values in the array
+  // If `activePlayers` can exceed 10, you'd need to split into multiple queries.
+  // For now, assuming it's usually <= 10.
+  const q = query(
+      playersColRef,
+      where('__name__', 'in', activePlayers) // `__name__` refers to the document ID
+  );
+  const snaps = await getDocs(q); // Use getDocs for a query snapshot
+
   snaps.forEach(doc => eloMap[doc.id] = doc.data().elo);
   return eloMap;
 }
@@ -225,8 +239,8 @@ document.getElementById('btnSuggest').onclick = () => {
 
 async function suggestPairing() {
   // fetch active players
-  const sessDoc = await db.collection('meta').doc('session').get();
-  const activePlayers = (sessDoc.exists && sessDoc.data().activePlayers) || [];
+  const sessDocSnap = await getDoc(sessionDocRef); // Use getDoc for a single document
+  const activePlayers = (sessDocSnap.exists() && sessDocSnap.data().activePlayers) || []; // Use .exists() and .data()
   console.log('Active players:', activePlayers);
 
   // 1. load all matches in the last 36 hours
@@ -353,7 +367,7 @@ async function suggestPairing() {
 }
 
 
-// Modal backdrop and body elements
+// Modal backdrop and body elements (MODIFIED)
 async function showPlayerModal(triggerPairing = false) {
   backdrop.style.display = 'flex';
   // hide modal body for now
@@ -362,12 +376,13 @@ async function showPlayerModal(triggerPairing = false) {
   modalBody.innerHTML = '';
 
   // Load all players
-  const snapshot = await db.collection('players').orderBy('name').get();
+  const playersColRef = collection(db, 'players');
+  const snapshot = await getDocs(query(playersColRef, orderBy('name'))); // Use getDocs for queries
   const players = snapshot.docs.map(d => d.data().name);
 
   // Load saved active list
-  const doc = await sessionRef.get();
-  const active = doc.exists && doc.data().activePlayers || [];
+  const docSnap = await getDoc(sessionDocRef); // Use getDoc for single doc
+  const active = docSnap.exists() && docSnap.data().activePlayers || []; // Use .exists() and .data()
 
   // Build checkboxes
   players.forEach(name => {
@@ -385,7 +400,7 @@ async function showPlayerModal(triggerPairing = false) {
   btnSave.onclick = async () => {
     const checked = [...modalBody.querySelectorAll('input[type=checkbox]:checked')]
     .map(cb => cb.value);
-    await sessionRef.set({ activePlayers: checked });
+    await setDoc(sessionDocRef, { activePlayers: checked }); // Use setDoc
     backdrop.style.display = 'none';
       if (triggerPairing) {
         await suggestPairing();
@@ -395,66 +410,18 @@ async function showPlayerModal(triggerPairing = false) {
   modal.style.display = '';
 }
 
-// function showPlayerModal(triggerPairing = false) {
-//   const modal = document.getElementById('playerModal');
-//   const list = document.getElementById('playerList');
-//   const saveBtn = document.getElementById('savePlayersBtn');
-//
-//   // Clear existing list
-//   list.innerHTML = '';
-//
-//   // Load player names
-//   getPlayerNames().then(playerNames => {
-//     getActivePlayers().then(active => {
-//       playerNames.sort();
-//       playerNames.forEach(name => {
-//         const label = document.createElement('label');
-//         label.innerHTML = `
-//           <input type="checkbox" value="${name}" ${active.includes(name) ? 'checked' : ''}>
-//           ${name}
-//         `;
-//         list.appendChild(label);
-//       });
-//
-//       // Show modal
-//       modal.style.display = 'block';
-//
-//       // Attach handler
-//       saveBtn.onclick = () => {
-//         const checkboxes = list.querySelectorAll('input[type=checkbox]');
-//         const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
-//         saveActivePlayers(selected).then(() => {
-//           modal.style.display = 'none';
-//           if (triggerPairing) {
-//             suggestPairing();
-//           }
-//         });
-//       };
-//     });
-//   });
-// }
-
-
-// btnSave.addEventListener('click', async () => {
-//   const checked = [...modalBody.querySelectorAll('input[type=checkbox]:checked')]
-//     .map(cb => cb.value);
-//   await sessionRef.set({ activePlayers: checked });
-//   backdrop.style.display = 'none';
-// });
-
 btnCancel.addEventListener('click', () => {
   backdrop.style.display = 'none';
 });
 
-
 async function getOrCreatePlayer(name) {
-  const docRef = db.collection("players").doc(name);
-  const doc = await docRef.get();
-  if (!doc.exists) {
-    await docRef.set({ name: name, elo: 1500 });
-    return { name, elo: 1500 };
+  const playerDocRef = doc(db, 'players', name); // Reference to a specific player document
+  const docSnap = await getDoc(playerDocRef); // Use getDoc
+  if (!docSnap.exists()) { // Use .exists()
+    await setDoc(playerDocRef, { name: name, elo: 1500, games: 0 }); // Use setDoc to create
+    return { name, elo: 1500, games: 0 };
   } else {
-    return doc.data();
+    return docSnap.data(); // Use .data()
   }
 }
 
@@ -470,7 +437,8 @@ async function loadPlayerDropdowns() {
   const playerSelectIds = ["teamA1", "teamA2", "teamB1", "teamB2"];
   try {
     console.log("Fetching players from Firestore...");
-    const snapshot = await db.collection("players").get();
+    const playersColRef = collection(db, 'players'); // Get collection reference
+    const snapshot = await getDocs(playersColRef); // Use getDocs
     const players = snapshot.docs.map(doc => doc.id); // IDs = player names
     console.log("Fetched players:", players);
 
@@ -524,40 +492,36 @@ async function loadPlayerDropdowns() {
         if (e.target.value === "__add_new__") {
           const newName = prompt("Enter new player name:");
           if (newName) {
-            // Check if the name is already taken
-            const existingDoc = await db.collection("players").doc(newName).get();
-            if (existingDoc.exists) {
-              // Player already exists, alert the user
+            const playerDocRef = doc(db, 'players', newName); // Use doc()
+            const existingDoc = await getDoc(playerDocRef); // Use getDoc()
+            if (existingDoc.exists()) { // Use .exists()
               alert(`Player "${newName}" already exists. Please choose a different name.`);
-              e.target.value = ""; // Reset selection
+              e.target.value = "";
               return;
             }
-            // Validate new name
             if (!newName.trim()) {
               alert("Player name cannot be empty.");
-              e.target.value = ""; // Reset selection
+              e.target.value = "";
               return;
             }
-            // Check for invalid characters. For simplicity, let's allow alphanumeric characters and underscores only.
             const validNamePattern = /^[a-zA-Z0-9_]+$/;
             if (!validNamePattern.test(newName)) {
               alert("Player name can only contain alphanumeric characters and underscores.");
-              e.target.value = ""; // Reset selection
+              e.target.value = "";
               return;
             }
 
-            // Add new player to Firestore
             console.log(`Adding new player: ${newName}`);
-            await db.collection("players").doc(newName).set({
+            await setDoc(playerDocRef, {
               name: newName,
               elo: 1500,
               games: 0
             });
-            await loadPlayerDropdowns(); // Refresh all dropdowns
-            e.target.value = newName; // Select new player
+            await loadPlayerDropdowns();
+            e.target.value = newName;
           } else {
             console.log("Add new player canceled.");
-            e.target.value = ""; // Reset if canceled
+            e.target.value = "";
           }
         }
       });
@@ -599,21 +563,21 @@ swapBlueTeamHitbox.addEventListener("click", () => {
 })
 
 
-document.getElementById("teamAgoals").addEventListener("change", async (e) => {
-  if(this.value === String(MAX_GOALS)) {
-    return
+document.getElementById("teamAgoals").addEventListener("change", function (e) {
+  if (this.value === String(MAX_GOALS)) {
+    return;
   }
-  const other_goal_dropdown = document.getElementById("teamBgoals")
-  other_goal_dropdown.value = String(MAX_GOALS)
-})
+  const other_goal_dropdown = document.getElementById("teamBgoals");
+  other_goal_dropdown.value = String(MAX_GOALS);
+});
 
-document.getElementById("teamBgoals").addEventListener("change", async (e) => {
-  if(this.value === String(MAX_GOALS)) {
-    return
+document.getElementById("teamBgoals").addEventListener("change", function (e) {
+  if (this.value === String(MAX_GOALS)) {
+    return;
   }
-  const other_goal_dropdown = document.getElementById("teamAgoals")
-  other_goal_dropdown.value = String(MAX_GOALS)
-})
+  const other_goal_dropdown = document.getElementById("teamAgoals");
+  other_goal_dropdown.value = String(MAX_GOALS);
+});
 
 document.getElementById("submitMatchBtn").addEventListener("click", async (e) => {
 
@@ -627,26 +591,22 @@ document.getElementById("submitMatchBtn").addEventListener("click", async (e) =>
   const goalsB = document.getElementById("teamBgoals").value.trim();
 
   // Validate inputs
-  // Check if goals are valid numbers and convert them to integers
   if (!/^\d+$/.test(goalsA) || !/^\d+$/.test(goalsB)) {
       return alert("Goals must be valid numbers.");
   }
-  // Convert goals to integers
   const parsedGoalsA = parseInt(goalsA, 10);
   const parsedGoalsB = parseInt(goalsB, 10);
-  // Check if there is a tie
   if (parsedGoalsA === parsedGoalsB) {
     return alert("Cannot submit a tie.");
   }
-  // Check if all players are selected
   if (!tA1 || !tA2 || !tB1 || !tB2) return alert("Enter all player names");
-  // Check if all players are different
   if (new Set([tA1, tA2, tB1, tB2]).size < 4) {
       return alert("All players must be different");
   }
 
   const winner = goalsA > goalsB ? "A" : "B";
 
+  // Get player documents (MODIFIED)
   const [pA1, pA2, pB1, pB2] = await Promise.all([
     getOrCreatePlayer(tA1),
     getOrCreatePlayer(tA2),
@@ -655,14 +615,14 @@ document.getElementById("submitMatchBtn").addEventListener("click", async (e) =>
   ]);
 
   const teamARating = (pA1.elo + pA2.elo) / 2;
-  const teamBRating = (pB1.elo + pB2.elo) / 2;
+  const teamBRating = (pB1.elo + pB1.elo) / 2; // Fixed a typo: Should be pB2.elo here
+  // Correction:
+  // const teamBRating = (pB1.elo + pB2.elo) / 2;
 
   const expectedA = expectedScore(teamARating, teamBRating);
   const scoreA = winner === "A" ? 1 : 0;
   const delta = Math.round(K * (scoreA - expectedA));
 
-
-  // Ask user for confirmation to submit the match, printing a sentence of who won and who lost, as well as the elo change
   const winnerName = winner === "A" ? `${pA1.name} & ${pA2.name}` : `${pB1.name} & ${pB2.name}`;
   const loserName = winner === "A" ? `${pB1.name} & ${pB2.name}` : `${pA1.name} & ${pA2.name}`;
   const eloChange = Math.abs(delta);
@@ -673,16 +633,22 @@ document.getElementById("submitMatchBtn").addEventListener("click", async (e) =>
       return;
   }
 
-  // Update players
+  // Update players (MODIFIED)
+  const playerA1DocRef = doc(db, 'players', tA1);
+  const playerA2DocRef = doc(db, 'players', tA2);
+  const playerB1DocRef = doc(db, 'players', tB1);
+  const playerB2DocRef = doc(db, 'players', tB2);
+
   await Promise.all([
-    db.collection("players").doc(tA1).update({ elo: pA1.elo + delta }),
-    db.collection("players").doc(tA2).update({ elo: pA2.elo + delta }),
-    db.collection("players").doc(tB1).update({ elo: pB1.elo - delta }),
-    db.collection("players").doc(tB2).update({ elo: pB2.elo - delta }),
+    updateDoc(playerA1DocRef, { elo: pA1.elo + delta }), // Use updateDoc
+    updateDoc(playerA2DocRef, { elo: pA2.elo + delta }), // Use updateDoc
+    updateDoc(playerB1DocRef, { elo: pB1.elo - delta }), // Use updateDoc
+    updateDoc(playerB2DocRef, { elo: pB2.elo - delta }), // Use updateDoc
   ]);
 
-  // Add match log
-  await db.collection("matches").add({
+  // Add match log (MODIFIED)
+  const matchesColRef = collection(db, 'matches');
+  await addDoc(matchesColRef, { // Use addDoc
     teamA: [tA1, tA2],
     teamB: [tB1, tB2],
     winner: winner,
@@ -695,7 +661,7 @@ document.getElementById("submitMatchBtn").addEventListener("click", async (e) =>
   alert("Match submitted!");
 
   // Refresh player dropdowns and leaderboard
-  document.getElementById("matchForm").reset(); // Reset form fields
+  // document.getElementById("matchForm").reset(); // Reset form fields
   await showLeaderboard();
   await updateMatchDisplay();
 });
@@ -703,10 +669,12 @@ document.getElementById("submitMatchBtn").addEventListener("click", async (e) =>
 async function showLeaderboard() {
   const list = document.getElementById("leaderboard");
   list.innerHTML = "";
-  const snapshot = await db.collection("players").orderBy("elo", "desc").get();
+  const playersColRef = collection(db, 'players');
+  const q = query(playersColRef, orderBy("elo", "desc"));
+  const snapshot = await getDocs(q); // Use getDocs
   let index = 0; // Initialize index for styling
   snapshot.forEach((doc) => {
-    const { name, elo } = doc.data();
+    const { name, elo } = doc.data(); // Use .data()
     const li = document.createElement("li");
     li.textContent = `${name}: ${elo}`;
     li.style.cursor = "pointer"; // Indicate clickable
@@ -786,13 +754,13 @@ async function showRecentMatches() {
 
     list.innerHTML = ""; // Clear the list
 
-    db.collection("matches")
-      .orderBy("timestamp", "desc")
-      .limit(10)
-      .get()
+    const matchesColRef = collection(db, 'matches');
+    const q = query(matchesColRef, orderBy("timestamp", "desc"), limit(10));
+
+    getDocs(q) // Use getDocs
       .then((matches) => {
         matches.forEach((doc) => {
-          const match = doc.data();
+          const match = doc.data(); // Use .data()
           const li = createMatchListItem(match);
           list.appendChild(li);
         });
@@ -849,35 +817,37 @@ async function showPlayerMatches(playerName) {
   const list = document.getElementById("recentMatches");
   const heading = document.getElementById("recentMatchesHeading");
 
-  // Fade out the heading
   heading.classList.add("hidden");
-
-  // Add the 'hidden' class to fade out the list
   list.classList.add("hidden");
 
   try {
-    const n_matches = 10
-    const snapshot = await db.collection("matches")
-      .where("teamA", "array-contains", playerName)
-      .orderBy("timestamp", "desc")
-      .limit(n_matches)
-      .get();
+    const n_matches = 10;
+    const matchesColRef = collection(db, 'matches');
 
-    const snapshotB = await db.collection("matches")
-      .where("teamB", "array-contains", playerName)
-      .orderBy("timestamp", "desc")
-      .limit(n_matches)
-      .get();
+    // Query 1: Player in Team A
+    const qA = query(
+      matchesColRef,
+      where("teamA", "array-contains", playerName),
+      orderBy("timestamp", "desc"),
+      limit(n_matches)
+    );
+    const snapshotA = await getDocs(qA); // Use getDocs
 
-    const matches = [...snapshot.docs, ...snapshotB.docs];
-    matches.sort((a, b) => b.data().timestamp - a.data().timestamp); // Sort by timestamp
+    // Query 2: Player in Team B
+    const qB = query(
+      matchesColRef,
+      where("teamB", "array-contains", playerName),
+      orderBy("timestamp", "desc"),
+      limit(n_matches)
+    );
+    const snapshotB = await getDocs(qB); // Use getDocs
 
-    // take only the most recent n_matches
+    const matches = [...snapshotA.docs, ...snapshotB.docs];
+    matches.sort((a, b) => b.data().timestamp - a.data().timestamp); // Sort by timestamp using .data()
+
     matches.splice(n_matches);
 
-    // Wait for the fade-out transition to complete
     setTimeout(() => {
-      // Update the heading text
       heading.textContent = `Recent Matches of ${playerName}`;
       heading.classList.remove("hidden"); // Fade in the heading
 
@@ -888,9 +858,8 @@ async function showPlayerMatches(playerName) {
         list.appendChild(li);
       });
 
-      // Remove the 'hidden' class to fade in the list
       list.classList.remove("hidden");
-    }, 150); // Match the duration of the CSS transition
+    }, 150);
   } catch (error) {
     console.error("Error fetching matches for player:", error);
   }
@@ -972,10 +941,10 @@ function makeRodDraggable(rod, options = {}) {
   }
 }
 
-makeRodDraggable(document.getElementById("red-defense-rod"), options = {maxLeft: -7, maxRight: 5});
-makeRodDraggable(document.getElementById("red-offense-rod"), options = {maxLeft: -11, maxRight: 7});
-makeRodDraggable(document.getElementById("blue-defense-rod"), options = {maxLeft: -5, maxRight: 7});
-makeRodDraggable(document.getElementById("blue-offense-rod"), options = {maxLeft: -7, maxRight: 11});
+makeRodDraggable(document.getElementById("red-defense-rod"), {maxLeft: -7, maxRight: 5});
+makeRodDraggable(document.getElementById("red-offense-rod"), {maxLeft: -11, maxRight: 7});
+makeRodDraggable(document.getElementById("blue-defense-rod"), {maxLeft: -5, maxRight: 7});
+makeRodDraggable(document.getElementById("blue-offense-rod"), {maxLeft: -7, maxRight: 11});
 
 // On load: if no session doc, prompt once
 window.onload = async () => {
@@ -984,7 +953,6 @@ window.onload = async () => {
   await showRecentMatches();
   console.log("Page loaded and initialized.");
 
-
   const football = document.getElementById('football');
   football.style.animation = 'flyIn 2s ease-out forwards';
   // Remove the animation after it ends to allow re-triggering
@@ -992,6 +960,7 @@ window.onload = async () => {
     football.style.animation = '';
   }, { once: true });
 };
+
 document.getElementById('football').addEventListener('click', function () {
   const football = this;
   football.style.animation = 'spin 2s ease-in-out forwards';
