@@ -1,6 +1,19 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
-import { connectFirestoreEmulator } from 'firebase/firestore';
+import {
+    getFirestore,
+    collection,
+    doc,
+    addDoc,
+    getDoc,
+    getDocs,
+    setDoc,
+    updateDoc,
+    query,
+    where,
+    orderBy,
+    limit,
+    connectFirestoreEmulator
+} from 'firebase/firestore';
 // import { getAuth, connectAuthEmulator } from 'firebase/auth';
 
 
@@ -24,4 +37,18 @@ if (import.meta.env.DEV) {
   // connectAuthEmulator(auth, 'http://127.0.0.1:9099');
 }
 
-export { db };
+// Export db and all necessary Firestore functions
+export {
+    db,
+    collection,
+    doc,
+    addDoc,
+    getDoc,
+    getDocs,
+    setDoc,
+    updateDoc,
+    query,
+    where,
+    orderBy,
+    limit,
+};
