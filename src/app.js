@@ -69,7 +69,6 @@ async function selectPlayer(playerName) {
 
 setOnPlayerClick(clickPlayer); // Set the callback for the leaderboard module
 
-
 // Setup match form submission
 setupMatchForm();
 

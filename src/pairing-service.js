@@ -45,139 +45,149 @@ function splitSession(matches) {
 }
 
 
-// Count plays per player in a given match set
-function countPlaysPerPlayer(matches, activePlayers) {
-    const plays = {};
-    activePlayers.forEach(p => plays[p] = 0); // Initialize all active players to 0
-    matches.forEach(m => {
-        m.teamA.forEach(p => { if (p in plays) plays[p]++; });
-        m.teamB.forEach(p => { if (p in plays) plays[p]++; });
-    });
-    return plays;
+// 3. Count how many times each active player played in session
+function countPlaysPerPlayer(sessionMatches, activePlayers) {
+  const count = {};
+  activePlayers.forEach(n => count[n] = 0);
+  sessionMatches.forEach(m => {
+    [...m.teamA, ...m.teamB]
+      .filter(p => activePlayers.includes(p))
+      .forEach(p => count[p]++);
+  });
+  return count;
 }
 
-// Build co-play and opposition counts for a given match set
+// 4. Co‑play and opposition counts
 function buildCoAndOppCounts(matches, activePlayers) {
-    const counts = {};
-    activePlayers.forEach(p => {
-        counts[p] = { with: {}, against: {} };
-        activePlayers.forEach(p2 => {
-            if (p !== p2) {
-                counts[p].with[p2] = 0;
-                counts[p].against[p2] = 0;
-            }
-        });
+  // init maps
+  const withCount = {}, againstCount = {};
+  activePlayers.forEach(a => {
+    withCount[a] = {};    // withCount[a][b] = times a & b were team‑mates
+    againstCount[a] = {}; // againstCount[a][b] = times a played opposite b
+    activePlayers.forEach(b => {
+      if (a !== b) {
+        withCount[a][b] = 0;
+        againstCount[a][b] = 0;
+      }
     });
+  });
 
-    matches.forEach(m => {
-        const allPlayersInMatch = [...m.teamA, ...m.teamB];
-
-        m.teamA.forEach(pa => {
-            m.teamA.forEach(pa2 => {
-                if (pa !== pa2 && pa in counts && pa2 in counts[pa].with) {
-                    counts[pa].with[pa2]++;
-                }
-            });
-            m.teamB.forEach(pb => {
-                if (pa in counts && pb in counts[pa].against) {
-                    counts[pa].against[pb]++;
-                }
-            });
-        });
-
-        m.teamB.forEach(pb => {
-            m.teamB.forEach(pb2 => {
-                if (pb !== pb2 && pb in counts && pb2 in counts[pb].with) {
-                    counts[pb].with[pb2]++;
-                }
-            });
-            m.teamA.forEach(pa => {
-                if (pb in counts && pa in counts[pb].against) {
-                    counts[pb].against[pa]++;
-                }
-            });
-        });
-    });
-    return counts;
-}
-
-// Generate all possible 2v2 pairings from a list of players
-function generatePairings(players) {
-    const pairings = [];
-    for (let i = 0; i < players.length; i++) {
-        for (let j = i + 1; j < players.length; j++) {
-            const teamA = [players[i], players[j]].sort(); // Sort for consistent order
-
-            const remainingPlayers = players.filter(p => p !== players[i] && p !== players[j]);
-            if (remainingPlayers.length >= 2) {
-                for (let k = 0; k < remainingPlayers.length; k++) {
-                    for (let l = k + 1; l < remainingPlayers.length; l++) {
-                        const teamB = [remainingPlayers[k], remainingPlayers[l]].sort();
-                        pairings.push({ teamA, teamB });
-                    }
-                }
-            }
+  matches.forEach(m => {
+    const A = m.teamA, B = m.teamB;
+    // team‑mates
+    [A, B].forEach(team => {
+      team.forEach(p1 => team.forEach(p2 => {
+        if (p1 !== p2 && withCount[p1] && withCount[p2]) {
+          withCount[p1][p2]++;
         }
-    }
-    return pairings;
-}
-
-// Score a single pairing based on various criteria
-function scorePairing(pairing, data) {
-    const { activePlayers, sessionMatches, historicMatches, playsCount, countsSession, countsHistoric, eloMap } = data;
-    const { teamA, teamB } = pairing;
-    const allPlayersInPairing = [...teamA, ...teamB];
-
-    let score = 0;
-
-    // 1. Avoid recently played (session)
-    allPlayersInPairing.forEach(p => {
-        score -= (playsCount[p] || 0) * 10; // Penalize players who played a lot recently
+      }));
     });
+    // opponents
+    A.forEach(pA => B.forEach(pB => {
+      if (againstCount[pA] && againstCount[pB]) {
+        againstCount[pA][pB]++;
+        againstCount[pB][pA]++;
+      }
+    }));
+  });
 
-    // 2. Avoid recent co-plays
-    teamA.forEach(p => teamA.forEach(p2 => {
-        if (p !== p2) score -= (countsSession[p]?.with[p2] || 0) * 50;
-    }));
-    teamB.forEach(p => teamB.forEach(p2 => {
-        if (p !== p2) score -= (countsSession[p]?.with[p2] || 0) * 50;
-    }));
-
-    // 3. Avoid recent opposition
-    teamA.forEach(p => teamB.forEach(p2 => {
-        score -= (countsSession[p]?.against[p2] || 0) * 30;
-    }));
-    teamB.forEach(p => teamA.forEach(p2 => {
-        score -= (countsSession[p]?.against[p2] || 0) * 30;
-    }));
-
-    // 4. Balance Elo ratings (teams should be evenly matched)
-    const eloA = (eloMap[teamA[0]] + eloMap[teamA[1]]) / 2;
-    const eloB = (eloMap[teamB[0]] + eloMap[teamB[1]]) / 2;
-    score -= Math.abs(eloA - eloB) * 0.5; // Penalize large ELO differences
-
-    // 5. Encourage playing with diverse teammates (historic)
-    teamA.forEach(p => teamA.forEach(p2 => {
-        if (p !== p2) score += (countsHistoric[p]?.with[p2] === 0 ? 5 : 0); // Bonus for new co-plays
-    }));
-    teamB.forEach(p => teamB.forEach(p2 => {
-        if (p !== p2) score += (countsHistoric[p]?.with[p2] === 0 ? 5 : 0);
-    }));
-
-    // 6. Encourage playing against diverse opponents (historic)
-    teamA.forEach(p => teamB.forEach(p2 => {
-        score += (countsHistoric[p]?.against[p2] === 0 ? 3 : 0); // Bonus for new opposition
-    }));
-    teamB.forEach(p => teamA.forEach(p2 => {
-        score += (countsHistoric[p]?.against[p2] === 0 ? 3 : 0);
-    }));
-
-    // 7. Balance sides (who plays offense vs defense) - (This part is currently handled outside this function)
-    // You would pass side counts if you wanted to integrate this into the pairing score
-    // For now, it's done after pairing selection
-
-    return score;
+  return { withCount, againstCount };
 }
+
+// 5. Generate all possible unique 2‑vs‑2 pairings
+function generatePairings(activePlayers) {
+  const pairings = [];
+  const n = activePlayers.length;
+  // choose 4 distinct players i<j<k<l
+  for (let a = 0; a < n; a++) {
+    for (let b = a + 1; b < n; b++) {
+      for (let c = b + 1; c < n; c++) {
+        for (let d = c + 1; d < n; d++) {
+          const quad = [activePlayers[a], activePlayers[b], activePlayers[c], activePlayers[d]];
+          // split quad into two teams of two
+          const teams = [
+            [[quad[0], quad[1]], [quad[2], quad[3]]],
+            [[quad[0], quad[2]], [quad[1], quad[3]]],
+            [[quad[0], quad[3]], [quad[1], quad[2]]],
+          ];
+          teams.forEach(t => pairings.push({ teamA: t[0], teamB: t[1] }));
+        }
+      }
+    }
+  }
+  return pairings;
+}
+
+// 6. Scoring function
+function scorePairing(p, data) {
+  const {
+    playsCount,
+    countsSession,
+    countsHistoric,
+    sessionMatches,
+    historicMatches,
+    eloMap // build a map of latest Elo: name->rating
+  } = data;
+
+  // weights (adjust as you like)
+  const w = {
+    sessionPlays: 1000.0,
+    sessionTeammateRepeat: 100.0, // typical value 0-2
+    historicTeammateRepeat: 20.0, // typical value 0-6
+    sessionOpponentRepeat: 40.0,  // typical value 0-4
+    historicOpponentRepeat: 8.0,  // typical value 0-12
+    intraTeamEloDiff: 0.1, // typical value 0-300
+    interTeamEloDiff: 0.3, // typical value 0-300
+  };
+
+  const { teamA, teamB } = p;
+  // 3. sum of plays in this session
+  const playsSess = playsCount[teamA[0]] + playsCount[teamA[1]] +
+                    playsCount[teamB[0]] + playsCount[teamB[1]];
+
+  // 4. teammate repeats
+  const repSessA = countsSession.withCount[teamA[0]][teamA[1]];
+  const repSessB = countsSession.withCount[teamB[0]][teamB[1]];
+  const repSess = repSessA + repSessB;
+  // 4a. historic teammate repeats
+  const repHistA = countsHistoric.withCount[teamA[0]][teamA[1]];
+  const repHistB = countsHistoric.withCount[teamB[0]][teamB[1]];
+  const repHist = repHistA + repHistB;
+
+  // 5. opponent repeats (sum over all cross‑pairs)
+  let oppRepSess = 0;
+  teamA.forEach(a => teamB.forEach(b => {
+    oppRepSess += countsSession.againstCount[a][b];
+  }));
+  // 5a. historic opponent repeats, normalized by total plays
+  let oppRepHist = 0;
+  teamA.forEach(a => teamB.forEach(b => {
+    oppRepHist += countsSession.againstCount[a][b];
+  }));
+
+  // 6. intra‑team Elo difference
+  const eloA0 = eloMap[teamA[0]], eloA1 = eloMap[teamA[1]];
+  const eloB0 = eloMap[teamB[0]], eloB1 = eloMap[teamB[1]];
+  const diffA = Math.abs(eloA0 - eloA1);
+  const diffB = Math.abs(eloB0 - eloB1);
+  const intraDiff = diffA + diffB;
+
+  // 7. inter‑team Elo difference (match balance)
+  const avgA = (eloA0 + eloA1) / 2;
+  const avgB = (eloB0 + eloB1) / 2;
+  const interDiff = Math.abs(avgA - avgB);
+
+  // weighted sum (we negate factors we want to minimize)
+  return 0
+    - w.sessionPlays           * playsSess
+    - w.sessionTeammateRepeat  * repSess
+    - w.historicTeammateRepeat * repHist
+    - w.sessionOpponentRepeat  * oppRepSess
+    - w.historicOpponentRepeat * oppRepHist
+    - w.intraTeamEloDiff       * intraDiff
+    - w.interTeamEloDiff       * interDiff;
+}
+
 
 // Build side-counts from all matches for balancing offense/defense
 function buildSideCounts(allMatches) {
