@@ -9,9 +9,6 @@ import {
 } from './player-stats-service.js';
 import Chart from "chart.js/auto";
 
-import "/src/tablesort/tablesort.min.js"; // Import Tablesort.js for sorting functionality
-import "/src/tablesort/sorts/tablesort.number.min.js"; // Import number sorting for Tablesort
-
 // Define the HTML template for the component using a template literal
 const template = document.createElement('template');
 template.innerHTML = `
@@ -23,7 +20,7 @@ template.innerHTML = `
             padding: 0px;
             border-radius: 10px;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-            /*width: 90%;*/
+            width: 800px;
             max-width: 90%;
             height: 90vh;
             max-height: 90vh;
@@ -118,7 +115,6 @@ template.innerHTML = `
             flex: 1 1 250px; /* Allow charts to grow, shrink, and wrap */
             max-width: 400px; /* Prevent a single chart from becoming too large */
             margin: 0 auto;
-            text-color: var(--text-color-primary);
         }
 
         .pie-chart-wrapper h4 {
@@ -161,13 +157,32 @@ template.innerHTML = `
         }
         
         .stats-table th {
-            background-color: var(--header-background-color);
+            background-color: var(--background-color-dark);
             color: var(--text-color-primary);
-            font-weight: bold;
+            font-weight: bold;cursor: pointer;
+            position: relative;
+        }
+
+        .stats-table th.sort-asc::after,
+        .stats-table th.sort-desc::after {
+            content: '';
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: 4px solid transparent;
+        }
+
+        .stats-table th.sort-asc::after {
+            border-bottom-color: var(--text-color-primary);
         }
         
-        .stats-table tbody tr:nth-child(odd) {
-            background-color: var(--background-color-light);
+        .stats-table th.sort-desc::after {
+            border-top-color: var(--text-color-primary);
+        }
+        
+        .stats-table tbody tr:nth-child(even) {
+            background-color: var(--background-color-primary);
         }
         
         .stats-table tbody tr:hover {
@@ -229,9 +244,8 @@ class PlayerStatsComponent extends HTMLElement {
         this.attachShadow({ mode: 'open' });
         this.shadowRoot.appendChild(template.content.cloneNode(true));
 
-        this.chartInstances = []; // Use an array to hold all chart instances
+        this.chartInstances = [];
 
-        // Event listener for close button in the shadow DOM
         const closeBtn = this.shadowRoot.querySelector('.close-btn');
         closeBtn.addEventListener('click', () => this.close());
     }
@@ -322,19 +336,19 @@ class PlayerStatsComponent extends HTMLElement {
     renderWinLossTable(ratios) {
         const container = this.shadowRoot.getElementById('winLossTableContainer');
         if (!container) return;
-        container.innerHTML = '<h3>Win/Loss vs. Opponents</h3>'; // Reset
+        container.innerHTML = '<h3>Win/Loss vs. Opponents</h3>';
         const table = this.createRatioTable(ratios, 'Opponent');
         container.appendChild(table);
-        if (typeof Tablesort !== 'undefined') new Tablesort(table);
+        this.makeTableSortable(table);
     }
 
     renderTeammateWinLossTable(ratios) {
         const container = this.shadowRoot.getElementById('teammateWinLossTableContainer');
         if (!container) return;
-        container.innerHTML = '<h3>Win/Loss with Teammates</h3>'; // Reset
+        container.innerHTML = '<h3>Win/Loss with Teammates</h3>';
         const table = this.createRatioTable(ratios, 'Teammate');
         container.appendChild(table);
-        if (typeof Tablesort !== 'undefined') new Tablesort(table);
+        this.makeTableSortable(table);
     }
 
     createRatioTable(ratios, entityHeader) {
@@ -342,9 +356,18 @@ class PlayerStatsComponent extends HTMLElement {
         table.className = 'stats-table';
         const thead = table.createTHead();
         const headerRow = thead.insertRow();
-        ['#', 'W', 'L', 'Ratio'].forEach(text => {
+        // Add data-sort-type to headers for our custom sorter
+        const headers = [
+            { text: '#', type: 'string' },
+            { text: 'W', type: 'number' },
+            { text: 'L', type: 'number' },
+            { text: 'Ratio', type: 'number' }
+        ];
+
+        headers.forEach(header => {
             const th = document.createElement('th');
-            th.textContent = text === '#' ? entityHeader : text;
+            th.textContent = header.text === '#' ? entityHeader : header.text;
+            th.dataset.sortType = header.type;
             headerRow.appendChild(th);
         });
 
@@ -372,30 +395,65 @@ class PlayerStatsComponent extends HTMLElement {
         return table;
     }
 
+    makeTableSortable(table) {
+        const headers = table.querySelectorAll('th');
+        headers.forEach((header, index) => {
+            header.addEventListener('click', () => {
+                const tbody = table.querySelector('tbody');
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                const sortType = header.dataset.sortType;
+                const isAsc = header.classList.contains('sort-asc');
+
+                // Reset other headers
+                headers.forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+
+                const direction = isAsc ? 'desc' : 'asc';
+                header.classList.add(`sort-${direction}`);
+
+                const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+
+                rows.sort((rowA, rowB) => {
+                    const cellA = rowA.cells[index].textContent.trim();
+                    const cellB = rowB.cells[index].textContent.trim();
+
+                    let valA, valB;
+
+                    if (sortType === 'number') {
+                        valA = parseFloat(cellA.replace('%', ''));
+                        valB = parseFloat(cellB.replace('%', ''));
+                    } else { // string
+                        valA = cellA;
+                        valB = cellB;
+                    }
+
+                    const modifier = direction === 'asc' ? 1 : -1;
+
+                    if (sortType === 'number') {
+                        if (valA < valB) return -1 * modifier;
+                        if (valA > valB) return 1 * modifier;
+                        return 0;
+                    } else {
+                        return collator.compare(valA, valB) * modifier;
+                    }
+                });
+
+                tbody.append(...rows);
+            });
+        });
+    }
+
     renderEloFlowCharts(eloGainsLosses) {
         const container = this.shadowRoot.getElementById('eloFlowContainer');
         if (!container) return;
         container.innerHTML = '';
 
-        // Sort gains and losses by ELO amount, descending
-        const gains = Object.entries(eloGainsLosses)
-            .filter(([_, v]) => v > 0)
-            .sort((a, b) => b[1] - a[1]);
-
-        const losses = Object.entries(eloGainsLosses)
-            .filter(([_, v]) => v < 0)
-            .map(([k, v]) => [k, -v]) // Make values positive for chart
-            .sort((a, b) => b[1] - a[1]);
+        const gains = Object.entries(eloGainsLosses).filter(([_, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+        const losses = Object.entries(eloGainsLosses).filter(([_, v]) => v < 0).map(([k, v]) => [k, -v]).sort((a, b) => b[1] - a[1]);
 
         const chartOptions = {
             responsive: true,
             plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        color: '#ccc' // Make legend text visible on dark backgrounds
-                    }
-                }
+                legend: { position: 'bottom', labels: { color: '#ccc' } }
             }
         };
 
@@ -408,10 +466,7 @@ class PlayerStatsComponent extends HTMLElement {
                 type: 'pie',
                 data: {
                     labels: gains.map(([name, elo]) => `${name} (${Math.round(elo)})`),
-                    datasets: [{
-                        data: gains.map(([_, elo]) => elo),
-                        backgroundColor: ['#4CAF50', '#8BC34A', '#CDDC39', '#009688', '#4DB6AC'],
-                    }]
+                    datasets: [{ data: gains.map(([_, elo]) => elo), backgroundColor: ['#4CAF50', '#8BC34A', '#CDDC39', '#009688', '#4DB6AC'] }]
                 },
                 options: chartOptions
             });
@@ -427,10 +482,7 @@ class PlayerStatsComponent extends HTMLElement {
                 type: 'pie',
                 data: {
                     labels: losses.map(([name, elo]) => `${name} (${Math.round(elo)})`),
-                    datasets: [{
-                        data: losses.map(([_, elo]) => elo),
-                        backgroundColor: ['#F44336', '#E91E63', '#9C27B0', '#FF5722', '#D32F2F'],
-                    }]
+                    datasets: [{ data: losses.map(([_, elo]) => elo), backgroundColor: ['#F44336', '#E91E63', '#9C27B0', '#FF5722', '#D32F2F'] }]
                 },
                 options: chartOptions
             });
