@@ -8,6 +8,9 @@ import { startRecentMatchesListener } from './recent-matches-display.js';
 import { suggestPairing } from './pairing-service.js';
 import { setupMatchForm } from './match-form-handler.js';
 import { showPlayerStats } from './player-stats-component.js';
+import { initializeMatchesData } from './match-data-service.js';
+
+initializeMatchesData()
 
 // Setup event listeners for global actions
 document.getElementById('btnSuggest').onclick = () => {

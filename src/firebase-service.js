@@ -1,5 +1,8 @@
 import { initializeApp } from 'firebase/app';
 import {
+    initializeFirestore,
+    persistentLocalCache,
+    persistentMultipleTabManager,
     getFirestore,
     collection,
     doc,
@@ -28,6 +31,13 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+// Use multi-tab IndexedDb persistence.
+initializeFirestore(app,
+  {localCache:
+    persistentLocalCache(/*settings*/{tabManager: persistentMultipleTabManager()})
+  }
+);
+
 const db = getFirestore(app);
 
 if (import.meta.env.DEV) {

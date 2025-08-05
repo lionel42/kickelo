@@ -1,8 +1,10 @@
 // src/player-stats-service.js
 
-import { db, collection, doc, getDoc, query, where, orderBy, limit, getDocs } from './firebase-service.js';
+import { db, doc, getDoc} from './firebase-service.js';
+import {isDataReady, allMatches} from "./match-data-service.js";
 
 // Helper to get a player's current ELO and games count
+// Helper to get a player's current ELO and games count (this remains async as it fetches from 'players')
 async function getPlayerInfo(playerName) {
     const playerDocRef = doc(db, 'players', playerName);
     const docSnap = await getDoc(playerDocRef);
@@ -14,12 +16,17 @@ async function getPlayerInfo(playerName) {
 
 /**
  * Calculates the ELO trajectory for a given player based on their recent matches.
- * The trajectory is calculated backwards from the player's current ELO.
+ * Reads from the local, real-time cache of matches.
  * @param {string} playerName - The name of the player.
  * @param {number} numRecentMatches - The number of most recent matches to consider for the trajectory.
- * @returns {Array<{elo: number, timestamp: number}>} An array of ELO points with timestamps, in chronological order.
+ * @returns {Promise<Array<{elo: number, timestamp: number}>>} A promise that resolves to an array of ELO points.
  */
 export async function getEloTrajectory(playerName, numRecentMatches = 20) {
+    if (!isDataReady) {
+        console.warn("Match data is not ready yet. Call initializeMatchesData() and wait for the data to load.");
+        return [];
+    }
+
     const playerInfo = await getPlayerInfo(playerName);
     if (!playerInfo) {
         console.warn(`Player ${playerName} not found.`);
@@ -27,61 +34,25 @@ export async function getEloTrajectory(playerName, numRecentMatches = 20) {
     }
 
     let currentElo = playerInfo.elo;
-    const trajectory = [{ elo: currentElo, timestamp: Date.now() }]; // Start with current ELO
+    const trajectory = [{ elo: currentElo, timestamp: Date.now() }];
 
-    const matchesColRef = collection(db, 'matches');
+    // Filter the local array instead of querying Firestore.
+    // Since `allMatches` is pre-sorted newest-to-oldest, we can just slice the results.
+    const relevantMatches = allMatches
+        .filter(match => match.teamA.includes(playerName) || match.teamB.includes(playerName))
+        .slice(0, numRecentMatches);
 
-    // Fetch matches where player is in Team A OR Team B
-    const qA = query(
-        matchesColRef,
-        where("teamA", "array-contains", playerName),
-        orderBy("timestamp", "desc"),
-        limit(numRecentMatches)
-    );
-    const qB = query(
-        matchesColRef,
-        where("teamB", "array-contains", playerName),
-        orderBy("timestamp", "desc"),
-        limit(numRecentMatches)
-    );
-
-    const [snapshotA, snapshotB] = await Promise.all([getDocs(qA), getDocs(qB)]);
-
-    let relevantMatches = [];
-    const processedMatchIds = new Set(); // To avoid duplicates if a player is in both queries (not typical for 2v2, but good practice)
-
-    snapshotA.docs.forEach(doc => {
-        if (!processedMatchIds.has(doc.id)) {
-            relevantMatches.push({ id: doc.id, ...doc.data() });
-            processedMatchIds.add(doc.id);
-        }
-    });
-    snapshotB.docs.forEach(doc => {
-        if (!processedMatchIds.has(doc.id)) {
-            relevantMatches.push({ id: doc.id, ...doc.data() });
-            processedMatchIds.add(doc.id);
-        }
-    });
-
-    // Sort matches in reverse chronological order (most recent first)
-    relevantMatches.sort((a, b) => b.timestamp - a.timestamp);
-
-    // Calculate trajectory backwards
+    // The rest of the calculation logic is identical.
     for (const match of relevantMatches) {
         const isPlayerInTeamA = match.teamA.includes(playerName);
         const playerWasWinner = (isPlayerInTeamA && match.winner === 'A') || (!isPlayerInTeamA && match.winner === 'B');
+        const eloDelta = match.eloDelta || 0;
 
-        const eloDelta = match.eloDelta || 0; // Ensure eloDelta exists, default to 0
-
-        // If player won this match, their ELO was lower before this match
-        // If player lost this match, their ELO was higher before this match
         if (playerWasWinner) {
             currentElo -= eloDelta;
         } else {
             currentElo += eloDelta;
         }
-
-        // Add to the beginning of the trajectory to keep it chronological
         trajectory.unshift({ elo: Math.round(currentElo), timestamp: match.timestamp });
     }
 
@@ -90,57 +61,30 @@ export async function getEloTrajectory(playerName, numRecentMatches = 20) {
 
 /**
  * Calculates win/loss ratios for a player against different opponents.
+ * This function is now synchronous as it only reads from the local array.
  * @param {string} playerName - The name of the player.
  * @returns {Object<string, {wins: number, losses: number}>} An object mapping opponent names to their win/loss counts.
  */
-export async function getWinLossRatios(playerName) {
+export function getWinLossRatios(playerName) {
+    if (!isDataReady) {
+        console.warn("Match data is not ready yet. Call initializeMatchesData() and wait for the data to load.");
+        return {};
+    }
+
     const ratios = {};
-    const matchesColRef = collection(db, 'matches');
 
-    // Fetch all matches for the player (consider adding a time limit for very large datasets)
-    const qA = query(
-        matchesColRef,
-        where("teamA", "array-contains", playerName)
+    // Filter the local array instead of querying Firestore.
+    const allRelevantMatches = allMatches.filter(match =>
+        match.teamA.includes(playerName) || match.teamB.includes(playerName)
     );
-    const qB = query(
-        matchesColRef,
-        where("teamB", "array-contains", playerName)
-    );
-
-    const [snapshotA, snapshotB] = await Promise.all([getDocs(qA), getDocs(qB)]);
-
-    let allRelevantMatches = [];
-    const processedMatchIds = new Set();
-
-    snapshotA.docs.forEach(doc => {
-        if (!processedMatchIds.has(doc.id)) {
-            allRelevantMatches.push({ id: doc.id, ...doc.data() });
-            processedMatchIds.add(doc.id);
-        }
-    });
-    snapshotB.docs.forEach(doc => {
-        if (!processedMatchIds.has(doc.id)) {
-            allRelevantMatches.push({ id: doc.id, ...doc.data() });
-            processedMatchIds.add(doc.id);
-        }
-    });
 
     for (const match of allRelevantMatches) {
         const isPlayerInTeamA = match.teamA.includes(playerName);
         const playerWasWinner = (isPlayerInTeamA && match.winner === 'A') || (!isPlayerInTeamA && match.winner === 'B');
 
-        let opponents = [];
-        if (isPlayerInTeamA) {
-            // Opponents are all players in Team B
-            opponents = match.teamB;
-        } else {
-            // Opponents are all players in Team A
-            opponents = match.teamA;
-        }
+        const opponents = isPlayerInTeamA ? match.teamB : match.teamA;
 
         opponents.forEach(opponent => {
-            if (opponent === playerName) return; // Should not happen if logic is correct, but safety check
-
             if (!ratios[opponent]) {
                 ratios[opponent] = { wins: 0, losses: 0 };
             }

@@ -15,8 +15,10 @@
     --gray-lightest: #EEEEEE;   /* Off-white for bright elements, light text on dark */
 
     /* --- Accent Colors (Red and Blue for highlights) --- */
-    --accent-red: #E74C3C;      /* A vibrant red for primary actions/highlights */
-    --accent-blue: #3498DB;     /* A vibrant blue for secondary actions/highlights */
+    --accent-red: #cf6b77;      /* A vibrant red for primary actions/highlights */
+    --accent-blue: #6cabc2;     /* A vibrant blue for secondary actions/highlights */
+    --dark-blue: rgba(49, 76, 86, 0.8);
+    --dark-red: rgba(106, 37, 45, 0.8);
 
     /* --- Semantic Colors (using the palette above) --- */
     --background-color-dark: var(--gray-darkest);

@@ -1,7 +1,11 @@
 // src/player-stats-component.js
 
 import { getEloTrajectory, getWinLossRatios } from './player-stats-service.js';
+import { allMatches } from './match-data-service.js'; // Import all matches data
 import Chart from "chart.js/auto";
+
+import "/src/tablesort/tablesort.min.js"; // Import Tablesort.js for sorting functionality
+import "/src/tablesort/sorts/tablesort.number.min.js"; // Import number sorting for Tablesort
 
 // Define the HTML template for the component using a template literal
 const template = document.createElement('template');
@@ -11,11 +15,11 @@ template.innerHTML = `
         /* Component-specific styles to keep things encapsulated */
         .modal-content {
             background-color: var(--background-color-dark);
-            padding: 25px;
+            padding: 0px;
             border-radius: 10px;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
             width: 400px;
-            max-width: 80%;
+            max-width: 90%;
             height: 90vh;
             max-height: 90vh;
             display: flex;
@@ -30,6 +34,11 @@ template.innerHTML = `
         }
 
         .modal-header {
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+            padding: 25px;
+            padding-top: 10px;
+            padding-bottom: 10px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -39,9 +48,7 @@ template.innerHTML = `
             z-index: 1001;
             position: sticky;
             top: 0;
-            background-color: var(--background-color-dark);
-            padding-top: 0;
-            margin-top: 0;
+            background-color: var(--background-color);
         }
 
         .modal-header h2 {
@@ -68,15 +75,16 @@ template.innerHTML = `
         .modal-body-scrollable {
             flex-grow: 1;
             overflow-y: auto;
-            padding-top: 10px;
+            padding: 10px;
+            /*padding-top: 10px;*/
         }
 
         .stats-section {
             margin-bottom: 25px;
             background-color: var(--card-background-color);
-            padding: 20px;
+            padding: 10px;
             border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
 
         .stats-section h3 {
@@ -108,7 +116,7 @@ template.innerHTML = `
         #winLossTable th,
         #winLossTable td {
             border: 1px solid var(--border-color);
-            padding: 10px 12px;
+            padding: 4px 6px;
             text-align: left;
         }
         
@@ -125,9 +133,6 @@ template.innerHTML = `
         #winLossTable tbody tr:hover {
             background-color: var(--hover-color);
         }
-
-        th.tablesort-asc::after { content: ' ▲'; }
-        th.tablesort-desc::after { content: ' ▼'; }
 
     </style>
     <div class="modal-content">
@@ -236,8 +241,10 @@ class PlayerStatsComponent extends HTMLElement {
                     data: data,
                     borderColor: '#6cabc2',
                     backgroundColor: '#6cabc2',
-                    borderWidth: 4,
+                    pointRadius: 0,
+                    borderWidth: 3,
                     tension: 0,
+                    pointHitRadius: 20,
                 }]
             },
             options: {
@@ -284,7 +291,7 @@ class PlayerStatsComponent extends HTMLElement {
 
         const thead = winLossTable.createTHead();
         const headerRow = thead.insertRow();
-        const headers = ['Opponent', 'Wins', 'Losses', 'Ratio'];
+        const headers = ['Opponent', 'W', 'L', 'Ratio'];
         headers.forEach(text => {
             const th = document.createElement('th');
             th.textContent = text;
@@ -351,7 +358,7 @@ export function showPlayerStats(playerName) {
     backdrop.appendChild(component);
     backdrop.classList.add('visible');
 
-    // Handle browser history as before
+    // Handle browser history
     if (history.state?.modal !== 'playerStatsModalOpen') {
         history.pushState({ modal: 'playerStatsModalOpen' }, '');
     }
