@@ -12,7 +12,8 @@ import {
     where,
     orderBy,
     limit,
-    connectFirestoreEmulator
+    connectFirestoreEmulator,
+    onSnapshot,
 } from 'firebase/firestore';
 // import { getAuth, connectAuthEmulator } from 'firebase/auth';
 
@@ -31,7 +32,7 @@ const db = getFirestore(app);
 
 if (import.meta.env.DEV) {
   // Firestore emulator
-  connectFirestoreEmulator(db, '127.0.0.1', 8080);
+  // connectFirestoreEmulator(db, '127.0.0.1', 8080);
   // Auth emulator (currently not used)
   // const auth = getAuth(app);
   // connectAuthEmulator(auth, 'http://127.0.0.1:9099');
@@ -51,4 +52,5 @@ export {
     where,
     orderBy,
     limit,
+    onSnapshot,
 };

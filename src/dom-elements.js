@@ -37,3 +37,10 @@ export {
     submitMatchBtn,
     matchForm
 };
+
+// export const playerStatsBackdrop = document.getElementById('playerStatsBackdrop');
+// export const playerStatsModal = document.getElementById('playerStatsModal');
+// export const playerStatsName = document.getElementById('playerStatsName');
+// export const playerStatsCloseBtn = document.getElementById('playerStatsCloseBtn');
+// export const eloChartCanvas = document.getElementById('eloChart');
+// export const winLossTableBody = document.querySelector('#winLossTable tbody'); // Select the tbody specifically

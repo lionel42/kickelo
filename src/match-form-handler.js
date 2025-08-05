@@ -3,8 +3,8 @@
 import { db, doc, addDoc, updateDoc, collection } from './firebase-service.js';
 import { expectedScore, updateRating } from './elo-service.js';
 import { getOrCreatePlayer } from './player-manager.js';
-import { showLeaderboard } from './leaderboard-display.js';
-import { updateRecentMatchDisplay } from './recent-matches-display.js';
+// import { showLeaderboard } from './leaderboard-display.js';
+import { stopRecentMatchesListeners } from './recent-matches-display.js';
 import {
     teamA1Select, teamA2Select, teamB1Select, teamB2Select,
     teamAgoalsInput, teamBgoalsInput, submitMatchBtn, matchForm
@@ -93,8 +93,8 @@ export function setupMatchForm() {
 
         // Reset matchRefresh player dropdowns and leaderboard
         resetMatchForm();
-        await showLeaderboard();
-        await updateRecentMatchDisplay();
+        // await showLeaderboard();
+        stopRecentMatchesListeners();
     });
 }
 

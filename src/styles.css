@@ -5,6 +5,46 @@
   -webkit-tap-highlight-color: rgba(255, 255, 255, 0.2);
 }
 
+:root {
+    /* --- Grayscale Palette --- */
+    --gray-darkest: #222222;    /* Very dark gray for deep backgrounds */
+    --gray-dark: #333333;       /* Dark gray for primary backgrounds */
+    --gray-medium: #444444;     /* Medium gray for card backgrounds, borders etc. */
+    --gray-light: #AAAAAA;      /* Light gray for secondary text, subtle borders */
+    --gray-lighter: #CCCCCC;    /* Even lighter gray for very subtle elements */
+    --gray-lightest: #EEEEEE;   /* Off-white for bright elements, light text on dark */
+
+    /* --- Accent Colors (Red and Blue for highlights) --- */
+    --accent-red: #E74C3C;      /* A vibrant red for primary actions/highlights */
+    --accent-blue: #3498DB;     /* A vibrant blue for secondary actions/highlights */
+
+    /* --- Semantic Colors (using the palette above) --- */
+    --background-color-dark: var(--gray-darkest);
+    --background-color-primary: var(--gray-dark);
+    --background-color-light: var(--gray-medium); /* Used for modal background, etc. */
+    --card-background-color: var(--gray-medium); /* For distinct sections within modals */
+    --header-background-color: var(--gray-dark); /* For table headers, etc. */
+
+    --text-color-primary: var(--gray-lightest); /* For main headings, important text */
+    --text-color-secondary: var(--gray-light);  /* For body text, descriptions */
+    --text-color-disabled: var(--gray-medium);  /* For disabled elements */
+
+    --border-color: var(--gray-medium); /* General border color */
+    --input-border-color: var(--gray-light); /* For input fields */
+
+    --button-primary-bg: var(--accent-blue);
+    --button-primary-text: var(--gray-lightest);
+    --button-secondary-bg: var(--gray-medium);
+    --button-secondary-text: var(--gray-lightest);
+
+    --accent-color: var(--accent-red); /* Your primary highlight/action color */
+    --hover-color: #555555; /* A slightly lighter gray for hover effects on elements */
+
+    /* Specific to your foosball table/players */
+    --red-team-color: #E74C3C; /* Using accent-red */
+    --blue-team-color: #3498DB; /* Using accent-blue */
+}
+
 /* General Reset */
 body, h1, h2, ul, form, label, select, button {
   margin: 0;
@@ -316,6 +356,229 @@ button:hover {
 #activeModal footer button {
   margin-right: 0.5rem;
 }
+
+/* --- Modal Styles (for all modals: activeModal and playerStatsModal) --- */
+
+.modal-backdrop {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0,0,0,0.5);
+  opacity: 0;
+  visibility: hidden;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+    /*position: fixed;*/
+    /*top: 0;*/
+    /*left: 0;*/
+    /*width: 100%;*/
+    /*height: 100%;*/
+    /*background-color: rgba(0, 0, 0, 0.7); !* Dimmed background *!*/
+    /*display: flex; !* Use flexbox for centering *!*/
+    /*justify-content: center; !* Center horizontally *!*/
+    /*align-items: center; !* Center vertically *!*/
+    /*z-index: 1000; !* Ensure it's on top of other content *!*/
+    /*opacity: 0; !* Start hidden for fade-in effect *!*/
+    /*visibility: hidden; !* Hide completely when not visible *!*/
+    /*transition: opacity 0.3s ease, visibility 0.3s ease;*/
+}
+
+.modal-backdrop.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+player-stats-component {
+    display: block; /* Custom elements are inline by default, change to block */
+    height: 100%; /* Ensure it takes up the full height of the backdrop */
+    width: 100%; /* Ensure it takes up the full width of the backdrop */
+
+    /* Add flexbox to center the content within the component itself */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal {
+    background-color: var(--background-color-dark); /* Use your light background variable */
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    width: 80%; /* Adjust width as needed */
+    max-width: 800px; /* Max width for larger screens */
+    /*max-height: 90vh; !* Max height for scrollable content *!*/
+    overflow-y: auto; /* Enable scrolling if content exceeds height */
+    position: relative; /* For positioning close button */
+    transform: translateY(-20px); /* Start slightly up for subtle animation */
+    opacity: 0; /* Start hidden for fade-in effect */
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    display: flex;
+    flex-direction: column; /* Stack header, body, and footer vertically */
+}
+
+.modal-backdrop.visible .modal {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.modal-header {
+    display: flex;
+    /*justify-content: space-between;*/
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 5px;
+    /*margin-bottom: 20px; !* Keep this to create space below the sticky header *!*/
+
+    /* --- ADD THESE LINES FOR STICKY HEADER --- */
+    position: sticky; /* Makes the header sticky */
+    top: 0;           /* Sticks to the top of its scrolling container */
+    background-color: var(--background-color-dark); /* Ensure background is solid when sticky */
+    z-index: 1001;    /* Higher than modal-backdrop to be on top of modal content */
+    /*padding-top: 25px; !* Add some padding to the top for visual comfort *!*/
+    margin-top: 25px; /* Counteract the padding-top so it doesn't push down */
+    /* Ensure the .modal has overflow-y: auto for sticky to work */
+}
+
+.modal-body-scrollable {
+    flex-grow: 1; /* Allows it to take up the remaining vertical space */
+    overflow-y: auto; /* Adds the scrollbar to this section only */
+    padding-top: 10px; /* Add some padding to the top of the scrollable content */
+}
+
+/*.modal header,*/
+/*.modal footer {*/
+/*  padding: 0.5rem 1rem;*/
+/*  background: #333333;*/
+/*}*/
+/*.modal header {*/
+/*  font-weight: bold;*/
+/*}*/
+
+/*.modal-header h2 {*/
+/*    margin: 0;*/
+/*    font-size: 1.8em;*/
+/*    color: var(--text-color-primary); !* Use your primary text color variable *!*/
+/*}*/
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 2.5em;
+    cursor: pointer;
+    color: var(--text-color-secondary); /* Use your secondary text color variable */
+    line-height: 1;
+    padding: 0 5px;
+    transition: color 0.2s ease;
+}
+
+.close-btn:hover {
+    color: var(--accent-color); /* Use your accent color variable */
+}
+
+.modal-body {
+    padding-top: 10px;
+    color: var(--text-color-secondary); /* Use your secondary text color variable */
+}
+
+/* --- Player Stats Specific Styles --- */
+.stats-section {
+    margin-bottom: 25px;
+    background-color: var(--card-background-color); /* A slightly different background for sections */
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.stats-section h3 {
+    color: var(--text-color-primary);
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.4em;
+    border-bottom: 1px dashed var(--border-color);
+    padding-bottom: 10px;
+}
+
+.chart-container {
+    position: relative;
+    height: 300px; /* Fixed height for the chart container */
+    width: 100%; /* Take full width of parent */
+    background-color: #fff; /* White background for the chart area */
+    border-radius: 5px;
+    padding: 10px;
+    box-sizing: border-box; /* Include padding in width/height */
+}
+
+/* Basic table styling for win/loss */
+#winLossTable {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    font-size: 0.95em;
+}
+
+#winLossTable th,
+#winLossTable td {
+    border: 1px solid var(--border-color);
+    padding: 10px 12px;
+    text-align: left;
+}
+
+#winLossTable th {
+    background-color: var(--header-background-color); /* A distinct color for headers */
+    color: var(--text-color-primary);
+    font-weight: bold;
+}
+
+#winLossTable tbody tr:nth-child(odd) {
+    background-color: var(--background-color-light); /* Alternate row color */
+}
+
+#winLossTable tbody tr:hover {
+    background-color: var(--hover-color); /* Hover effect */
+}
+
+th[role=columnheader]:not(.no-sort) {
+	cursor: pointer;
+}
+
+th[role=columnheader]:not(.no-sort):after {
+	content: '';
+	float: right;
+	margin-top: 7px;
+	border-width: 0 4px 4px;
+	border-style: solid;
+	border-color: #404040 transparent;
+	visibility: hidden;
+	opacity: 0;
+	-ms-user-select: none;
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	user-select: none;
+}
+
+th[aria-sort=ascending]:not(.no-sort):after {
+	border-bottom: none;
+	border-width: 4px 4px 0;
+}
+
+th[aria-sort]:not(.no-sort):after {
+	visibility: visible;
+	opacity: 0.4;
+}
+
+th[role=columnheader]:not(.no-sort):focus:after,
+th[role=columnheader]:not(.no-sort):hover:after {
+	visibility: visible;
+	opacity: 1;
+}
+
+/*#winLossTable th.tablesort-asc::after {*/
+/*    content: ' ▲'; !* Up arrow for ascending *!*/
+/*}*/
+
+/*#winLossTable th.tablesort-desc::after {*/
+/*    content: ' ▼'; !* Down arrow for descending *!*/
+/*}*/
 
 @keyframes flyIn {
   0% {
