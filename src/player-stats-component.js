@@ -1,7 +1,12 @@
 // src/player-stats-component.js
 
-import { getEloTrajectory, getWinLossRatios } from './player-stats-service.js';
-import { allMatches } from './match-data-service.js'; // Import all matches data
+import {
+    getEloTrajectory,
+    getWinLossRatios,
+    getWinLossRatiosWithTeammates,
+    getEloGainsAndLosses,
+    getLongestStreaks
+} from './player-stats-service.js';
 import Chart from "chart.js/auto";
 
 import "/src/tablesort/tablesort.min.js"; // Import Tablesort.js for sorting functionality
@@ -18,14 +23,13 @@ template.innerHTML = `
             padding: 0px;
             border-radius: 10px;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-            width: 400px;
+            /*width: 90%;*/
             max-width: 90%;
             height: 90vh;
             max-height: 90vh;
             display: flex;
             flex-direction: column;
             z-index: 1000;
-            /*position: relative;*/
         }
         
         :host-context(#playerStatsBackdrop.visible) .modal-content {
@@ -43,8 +47,6 @@ template.innerHTML = `
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid var(--border-color);
-            /*padding-bottom: 15px;*/
-            /*margin-bottom: 20px;*/
             z-index: 1001;
             position: sticky;
             top: 0;
@@ -76,7 +78,6 @@ template.innerHTML = `
             flex-grow: 1;
             overflow-y: auto;
             padding: 10px;
-            /*padding-top: 10px;*/
         }
 
         .stats-section {
@@ -106,31 +107,70 @@ template.innerHTML = `
             box-sizing: border-box;
         }
 
-        #winLossTable {
+        .pie-charts-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .pie-chart-wrapper {
+            flex: 1 1 250px; /* Allow charts to grow, shrink, and wrap */
+            max-width: 400px; /* Prevent a single chart from becoming too large */
+            margin: 0 auto;
+            text-color: var(--text-color-primary);
+        }
+
+        .pie-chart-wrapper h4 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: var(--text-color-secondary);
+        }
+
+        .streaks-container {
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+        }
+
+        .streak-item h4 {
+            font-size: 2.5em;
+            margin: 0;
+            color: var(--text-color-primary);
+        }
+
+        .streak-item p {
+            margin: 0;
+            font-size: 0.9em;
+            color: var(--text-color-secondary);
+        }
+
+        /* Generic table style */
+        .stats-table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 15px;
             font-size: 0.95em;
         }
 
-        #winLossTable th,
-        #winLossTable td {
+        .stats-table th,
+        .stats-table td {
             border: 1px solid var(--border-color);
             padding: 4px 6px;
             text-align: left;
         }
         
-        #winLossTable th {
+        .stats-table th {
             background-color: var(--header-background-color);
             color: var(--text-color-primary);
             font-weight: bold;
         }
         
-        #winLossTable tbody tr:nth-child(odd) {
+        .stats-table tbody tr:nth-child(odd) {
             background-color: var(--background-color-light);
         }
         
-        #winLossTable tbody tr:hover {
+        .stats-table tbody tr:hover {
             background-color: var(--hover-color);
         }
 
@@ -151,9 +191,32 @@ template.innerHTML = `
                         <canvas id="eloChart"></canvas>
                     </div>
                 </div>
+                
+                <!-- Streaks Section -->
+                <div class="stats-section">
+                    <h3>Longest Streaks</h3>
+                    <div id="streaksContainer" class="streaks-container">
+                        <!-- Content will be rendered here -->
+                    </div>
+                </div>
+
+                <!-- ELO Flow Section -->
+                <div class="stats-section">
+                    <h3>ELO Flow</h3>
+                    <div id="eloFlowContainer" class="pie-charts-container">
+                        <!-- Pie charts will be rendered here -->
+                    </div>
+                </div>
+
+                <!-- Opponent Stats Table Section -->
                 <div id="winLossTableContainer" class="stats-section">
                     <h3>Win/Loss vs. Opponents</h3>
-                    </div>
+                </div>
+
+                <!-- Teammate Stats Table Section -->
+                <div id="teammateWinLossTableContainer" class="stats-section">
+                    <h3>Win/Loss with Teammates</h3>
+                </div>
             </div>
         </div>
     </div>
@@ -166,13 +229,11 @@ class PlayerStatsComponent extends HTMLElement {
         this.attachShadow({ mode: 'open' });
         this.shadowRoot.appendChild(template.content.cloneNode(true));
 
-        this.chartInstance = null;
+        this.chartInstances = []; // Use an array to hold all chart instances
 
         // Event listener for close button in the shadow DOM
         const closeBtn = this.shadowRoot.querySelector('.close-btn');
         closeBtn.addEventListener('click', () => this.close());
-
-        console.log(`PlayerStatsComponent constructor called.`);
     }
 
     connectedCallback() {
@@ -181,64 +242,62 @@ class PlayerStatsComponent extends HTMLElement {
             console.error("Player name attribute is missing!");
             return;
         }
-        this.loadPlayerStats()
+        this.loadPlayerStats();
     }
 
     async loadPlayerStats() {
         if (!this.playerName) return;
 
-        // Show loading state
         const loadingEl = this.shadowRoot.getElementById('loading');
         const statsContentEl = this.shadowRoot.getElementById('stats-content');
         loadingEl.style.display = 'block';
         statsContentEl.style.display = 'none';
 
-        const playerNameEl = this.shadowRoot.getElementById('playerStatsName');
-        playerNameEl.textContent = this.playerName;
+        this.shadowRoot.getElementById('playerStatsName').textContent = this.playerName;
 
         try {
-            const [eloTrajectory, winLossRatios] = await Promise.all([
+            const [
+                eloTrajectory,
+                winLossRatios,
+                teammateRatios,
+                eloGainsLosses,
+                longestStreaks
+            ] = await Promise.all([
                 getEloTrajectory(this.playerName),
-                getWinLossRatios(this.playerName)
+                getWinLossRatios(this.playerName),
+                getWinLossRatiosWithTeammates(this.playerName),
+                getEloGainsAndLosses(this.playerName),
+                getLongestStreaks(this.playerName)
             ]);
 
             this.renderEloGraph(eloTrajectory);
             this.renderWinLossTable(winLossRatios);
+            this.renderTeammateWinLossTable(teammateRatios);
+            this.renderEloFlowCharts(eloGainsLosses);
+            this.renderStreaks(longestStreaks);
 
             loadingEl.style.display = 'none';
             statsContentEl.style.display = 'block';
 
         } catch (error) {
             console.error("Error loading player stats:", error);
-            playerNameEl.textContent = `${this.playerName} (Error loading stats)`;
+            this.shadowRoot.getElementById('playerStatsName').textContent = `${this.playerName} (Error loading stats)`;
             loadingEl.style.display = 'none';
             statsContentEl.innerHTML = `<p style="color: red; text-align: center;">Failed to load player statistics.</p>`;
         }
     }
 
-    // Moved rendering functions into the component class
-        renderEloGraph(trajectoryData) {
+    renderEloGraph(trajectoryData) {
         const canvas = this.shadowRoot.getElementById('eloChart');
-        if (!canvas) {
-            console.error("ELO chart canvas not found in web component.");
-            return;
-        }
+        if (!canvas) return;
 
-        if (this.chartInstance) {
-            this.chartInstance.destroy();
-        }
-
-        const labels = trajectoryData.map(point => new Date(point.timestamp).toLocaleDateString());
-        const data = trajectoryData.map(point => point.elo);
-
-        const ctx = canvas.getContext('2d');
-        this.chartInstance = new Chart(ctx, {
+        const chart = new Chart(canvas.getContext('2d'), {
             type: 'line',
             data: {
-                labels: labels,
+                labels: trajectoryData.map(p => new Date(p.timestamp).toLocaleDateString()),
                 datasets: [{
                     label: 'ELO',
-                    data: data,
+                    data: trajectoryData.map(p => p.elo),
                     borderColor: '#6cabc2',
                     backgroundColor: '#6cabc2',
                     pointRadius: 0,
@@ -251,92 +310,158 @@ class PlayerStatsComponent extends HTMLElement {
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                    y: {
-                        beginAtZero: false,
-                        grid: {
-                            color: 'rgba(170, 170, 170, 0.2)', // Subtle light gray grid lines
-                            borderColor: 'rgba(170, 170, 170, 0.5)'
-                        },
-                        ticks: {
-                            color: '#ccc' // Light gray text for ticks
-                        }
-                    },
-                    x: {
-                        grid: {
-                            color: 'rgba(170, 170, 170, 0.2)', // Subtle light gray grid lines
-                            borderColor: 'rgba(170, 170, 170, 0.5)'
-                        },
-                        ticks: {
-                            color: '#ccc' // Light gray text for ticks
-                        }
-                    }
+                    y: { ticks: { color: '#ccc' }, grid: { color: 'rgba(170, 170, 170, 0.2)' } },
+                    x: { ticks: { color: '#ccc' }, grid: { color: 'rgba(170, 170, 170, 0.2)' } }
                 },
-                plugins: {
-                    legend: {display: false},
-                },
+                plugins: { legend: { display: false } },
             }
         });
+        this.chartInstances.push(chart);
     }
 
     renderWinLossTable(ratios) {
         const container = this.shadowRoot.getElementById('winLossTableContainer');
-        if (!container) {
-            console.error("Win/Loss table container not found in web component.");
-            return;
-        }
-        container.innerHTML = '<h3>Win/Loss vs. Opponents</h3>'; // Re-create heading
+        if (!container) return;
+        container.innerHTML = '<h3>Win/Loss vs. Opponents</h3>'; // Reset
+        const table = this.createRatioTable(ratios, 'Opponent');
+        container.appendChild(table);
+        if (typeof Tablesort !== 'undefined') new Tablesort(table);
+    }
 
-        const winLossTable = document.createElement('table');
-        winLossTable.id = 'winLossTable';
+    renderTeammateWinLossTable(ratios) {
+        const container = this.shadowRoot.getElementById('teammateWinLossTableContainer');
+        if (!container) return;
+        container.innerHTML = '<h3>Win/Loss with Teammates</h3>'; // Reset
+        const table = this.createRatioTable(ratios, 'Teammate');
+        container.appendChild(table);
+        if (typeof Tablesort !== 'undefined') new Tablesort(table);
+    }
 
-        const thead = winLossTable.createTHead();
+    createRatioTable(ratios, entityHeader) {
+        const table = document.createElement('table');
+        table.className = 'stats-table';
+        const thead = table.createTHead();
         const headerRow = thead.insertRow();
-        const headers = ['Opponent', 'W', 'L', 'Ratio'];
-        headers.forEach(text => {
+        ['#', 'W', 'L', 'Ratio'].forEach(text => {
             const th = document.createElement('th');
-            th.textContent = text;
+            th.textContent = text === '#' ? entityHeader : text;
             headerRow.appendChild(th);
         });
 
-        const tbody = winLossTable.createTBody();
-        const opponentNames = Object.keys(ratios).sort();
+        const tbody = table.createTBody();
+        const names = Object.keys(ratios).sort();
 
-        if (opponentNames.length === 0) {
+        if (names.length === 0) {
             const row = tbody.insertRow();
             const cell = row.insertCell();
             cell.colSpan = 4;
-            cell.textContent = "No matches against opponents recorded.";
+            cell.textContent = `No matches with ${entityHeader.toLowerCase()}s recorded.`;
             cell.style.textAlign = "center";
         } else {
-            opponentNames.forEach(opponent => {
-                const stats = ratios[opponent];
+            names.forEach(name => {
+                const stats = ratios[name];
                 const totalGames = stats.wins + stats.losses;
                 const ratio = totalGames > 0 ? (stats.wins / totalGames * 100).toFixed(1) : 0;
                 const row = tbody.insertRow();
-                row.insertCell().textContent = opponent;
+                row.insertCell().textContent = name;
                 row.insertCell().textContent = stats.wins;
                 row.insertCell().textContent = stats.losses;
                 row.insertCell().textContent = `${ratio}%`;
             });
         }
-        winLossTable.appendChild(tbody);
-        container.appendChild(winLossTable);
+        return table;
+    }
 
-        if (typeof Tablesort !== 'undefined') {
-            new Tablesort(winLossTable);
-        } else {
-            console.warn("Tablesort.js not loaded. Table will not be sortable.");
+    renderEloFlowCharts(eloGainsLosses) {
+        const container = this.shadowRoot.getElementById('eloFlowContainer');
+        if (!container) return;
+        container.innerHTML = '';
+
+        // Sort gains and losses by ELO amount, descending
+        const gains = Object.entries(eloGainsLosses)
+            .filter(([_, v]) => v > 0)
+            .sort((a, b) => b[1] - a[1]);
+
+        const losses = Object.entries(eloGainsLosses)
+            .filter(([_, v]) => v < 0)
+            .map(([k, v]) => [k, -v]) // Make values positive for chart
+            .sort((a, b) => b[1] - a[1]);
+
+        const chartOptions = {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: '#ccc' // Make legend text visible on dark backgrounds
+                    }
+                }
+            }
+        };
+
+        if (gains.length > 0) {
+            const gainsWrapper = document.createElement('div');
+            gainsWrapper.className = 'pie-chart-wrapper';
+            gainsWrapper.innerHTML = '<h4>ELO Gained From</h4><canvas></canvas>';
+            container.appendChild(gainsWrapper);
+            const chart = new Chart(gainsWrapper.querySelector('canvas').getContext('2d'), {
+                type: 'pie',
+                data: {
+                    labels: gains.map(([name, elo]) => `${name} (${Math.round(elo)})`),
+                    datasets: [{
+                        data: gains.map(([_, elo]) => elo),
+                        backgroundColor: ['#4CAF50', '#8BC34A', '#CDDC39', '#009688', '#4DB6AC'],
+                    }]
+                },
+                options: chartOptions
+            });
+            this.chartInstances.push(chart);
+        }
+
+        if (losses.length > 0) {
+            const lossesWrapper = document.createElement('div');
+            lossesWrapper.className = 'pie-chart-wrapper';
+            lossesWrapper.innerHTML = '<h4>ELO Lost To</h4><canvas></canvas>';
+            container.appendChild(lossesWrapper);
+            const chart = new Chart(lossesWrapper.querySelector('canvas').getContext('2d'), {
+                type: 'pie',
+                data: {
+                    labels: losses.map(([name, elo]) => `${name} (${Math.round(elo)})`),
+                    datasets: [{
+                        data: losses.map(([_, elo]) => elo),
+                        backgroundColor: ['#F44336', '#E91E63', '#9C27B0', '#FF5722', '#D32F2F'],
+                    }]
+                },
+                options: chartOptions
+            });
+            this.chartInstances.push(chart);
+        }
+
+        if (gains.length === 0 && losses.length === 0) {
+            container.innerHTML = `<p style="text-align: center; width: 100%;">No ELO changes recorded.</p>`;
         }
     }
 
+    renderStreaks(streaks) {
+        const container = this.shadowRoot.getElementById('streaksContainer');
+        if (!container) return;
+        container.innerHTML = `
+            <div class="streak-item">
+                <h4>${streaks.longestWinStreak}</h4>
+                <p>Longest Win Streak</p>
+            </div>
+            <div class="streak-item">
+                <h4>${streaks.longestLossStreak}</h4>
+                <p>Longest Loss Streak</p>
+            </div>
+        `;
+    }
+
     close() {
-        // Find the backdrop parent and remove itself
         this.parentNode.classList.remove('visible');
         this.parentNode.innerHTML = '';
-        if (this.chartInstance) {
-            this.chartInstance.destroy();
-            this.chartInstance = null;
-        }
+        this.chartInstances.forEach(chart => chart.destroy());
+        this.chartInstances = [];
         if (history.state?.modal === 'playerStatsModalOpen') {
             history.back();
         }
@@ -346,6 +471,7 @@ class PlayerStatsComponent extends HTMLElement {
 // Define the custom element
 customElements.define('player-stats-component', PlayerStatsComponent);
 
+// The export and popstate listener remain the same
 export function showPlayerStats(playerName) {
     const backdrop = document.getElementById('playerStatsBackdrop');
     if (!backdrop) {
@@ -355,10 +481,10 @@ export function showPlayerStats(playerName) {
 
     const component = document.createElement('player-stats-component');
     component.setAttribute('player-name', playerName);
+    backdrop.innerHTML = ''; // Clear previous component
     backdrop.appendChild(component);
     backdrop.classList.add('visible');
 
-    // Handle browser history
     if (history.state?.modal !== 'playerStatsModalOpen') {
         history.pushState({ modal: 'playerStatsModalOpen' }, '');
     }
@@ -367,18 +493,7 @@ export function showPlayerStats(playerName) {
 window.addEventListener('popstate', (event) => {
     const backdrop = document.getElementById('playerStatsBackdrop');
     const component = backdrop?.querySelector('player-stats-component');
-    if (event.state && event.state.modal === 'playerStatsModalOpen') {
-        if (component) {
-            // Already open and on correct state, do nothing
-        } else if (!component) {
-            // Modal was closed, but we navigated back to this state. Re-open it.
-            // (This logic needs player name, which is hard to get from history state.
-            // A better way is to simply close the modal when popstate is called)
-            // Let's simplify and just ensure it's hidden.
-        }
-    } else {
-        if (component) {
-            component.close();
-        }
+    if (component && (!event.state || event.state.modal !== 'playerStatsModalOpen')) {
+        component.close();
     }
 });
