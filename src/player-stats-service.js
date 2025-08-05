@@ -146,8 +146,8 @@ export function getEloGainsAndLosses(playerName) {
 
         opponents.forEach(opponent => {
             if (!netEloChanges[opponent]) netEloChanges[opponent] = 0;
-            if (playerWasWinner) netEloChanges[opponent] += eloDelta;
-            else netEloChanges[opponent] -= eloDelta;
+            if (playerWasWinner) netEloChanges[opponent] += 0.5 * eloDelta;
+            else netEloChanges[opponent] -= 0.5 * eloDelta;
         });
     }
     return netEloChanges;
