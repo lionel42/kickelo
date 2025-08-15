@@ -7,6 +7,7 @@ import {
     getEloGainsAndLosses,
     getLongestStreaks
 } from './player-stats-service.js';
+import { allMatches } from './match-data-service.js';
 import Chart from "chart.js/auto";
 
 // Define the HTML template for the component using a template literal
@@ -47,7 +48,7 @@ template.innerHTML = `
             z-index: 1001;
             position: sticky;
             top: 0;
-            background-color: var(--background-color);
+            /*background-color: var(--background-color-light);*/
         }
 
         .modal-header h2 {
@@ -188,6 +189,79 @@ template.innerHTML = `
         .stats-table tbody tr:hover {
             background-color: var(--hover-color);
         }
+        
+        .recent-matches-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .recent-matches-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .match-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            background-color: var(--background-color-primary); /* Slightly different from card for contrast */
+            margin-bottom: 6px;
+            border-radius: 6px;
+            border-left: 5px solid transparent; /* Thicker border for win/loss */
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .match-item.win {
+            border-left-color: #86e086; /* Green for win */
+        }
+        
+        .match-item.loss {
+            border-left-color: #ff7b7b; /* Red for loss */
+        }            
+
+        /*.match-info {*/
+        /*    font-size: 0.9em;*/
+        /*}*/
+        
+        .match-results {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-align: right;
+        }
+        
+        .match-info {
+            font-size: 0.9em;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            /*gap: 8px;*/
+            flex: 1;
+            min-width: 0; /* Allows text truncation */
+        }
+         
+        .team-display {
+            display: inline-block;
+            white-space: nowrap;
+            /*margin-right: 4px;*/
+        }
+        
+        .match-score {
+            font-weight: 600;
+            font-size: 1.1em;
+            display: inline-block;
+            flex-shrink: 0;
+            margin: 0 4px;
+        }
+        
+        .elo-change {
+            flex-shrink: 0;
+            min-width: 45px; /* Ensures space for ▲ and two digits */
+            text-align: right;
+        }
 
     </style>
     <div class="modal-content">
@@ -200,11 +274,18 @@ template.innerHTML = `
                 <p>Loading player statistics...</p>
             </div>
             <div id="stats-content" style="display: none;">
+                <!-- ELO Trajectory Section -->
                 <div class="stats-section">
                     <h3>ELO Trajectory</h3>
                     <div class="chart-container">
                         <canvas id="eloChart"></canvas>
                     </div>
+                </div>
+       
+                <!-- Recent Matches Section -->
+                <div id="recentMatchesContainer" class="stats-section">
+                    <h3>Recent Matches</h3>
+                    <ul class="recent-matches-list"></ul>
                 </div>
                 
                 <!-- Streaks Section -->
@@ -285,10 +366,11 @@ class PlayerStatsComponent extends HTMLElement {
             ]);
 
             this.renderEloGraph(eloTrajectory);
+            this.renderRecentMatches();
+            this.renderStreaks(longestStreaks);
+            this.renderEloFlowCharts(eloGainsLosses);
             this.renderWinLossTable(winLossRatios);
             this.renderTeammateWinLossTable(teammateRatios);
-            this.renderEloFlowCharts(eloGainsLosses);
-            this.renderStreaks(longestStreaks);
 
             loadingEl.style.display = 'none';
             statsContentEl.style.display = 'block';
@@ -507,6 +589,57 @@ class PlayerStatsComponent extends HTMLElement {
                 <p>Longest Loss Streak</p>
             </div>
         `;
+    }
+
+    renderRecentMatches() {
+        const container = this.shadowRoot.querySelector('.recent-matches-list');
+        if (!container) return;
+
+        container.innerHTML = ''; // Clear previous list
+
+        const relevantMatches = allMatches
+            .filter(match => match.teamA.includes(this.playerName) || match.teamB.includes(this.playerName))
+            .slice(0, 10); // Show the last 10 matches
+
+        if (relevantMatches.length === 0) {
+            container.innerHTML = `<li class="match-item">No recent matches found for this player.</li>`;
+            return;
+        }
+
+        relevantMatches.forEach(match => {
+            const li = document.createElement('li');
+            li.className = 'match-item';
+
+            const isPlayerInTeamA = match.teamA.includes(this.playerName);
+            const playerWon = (isPlayerInTeamA && match.winner === 'A') || (!isPlayerInTeamA && match.winner === 'B');
+
+            li.classList.add(playerWon ? 'win' : 'loss');
+
+            const teamAPlayers = match.teamA.map(player => `<span style="color: #ce848c;">${player}</span>`).join(` <span style="color: #ce848c;"> & </span> `);
+            const teamBPlayers = match.teamB.map(player => `<span style="color: #6cabc2;">${player}</span>`).join(` <span style="color: #6cabc2;"> & </span> `);
+
+            const playerGoals = isPlayerInTeamA ? (match.goalsA ?? '-') : (match.goalsB ?? '-');
+            const opponentGoals = isPlayerInTeamA ? (match.goalsB ?? '-') :  (match.goalsA ?? '-');
+
+            const playerTeamHtml = isPlayerInTeamA ? teamAPlayers : teamBPlayers;
+            const opponentTeamHtml = isPlayerInTeamA ? teamBPlayers : teamAPlayers;
+
+            const changeSpanText = playerWon ?
+                `<span style="color: #86e086">▲ ${Math.round(match.eloDelta)}</span>`
+                : `<span style="color: #ff7b7b">▼ ${Math.round(Math.abs(match.eloDelta))}</span>`;
+
+            li.innerHTML = `
+                <div class="match-info">
+                    <span class="team-display">${playerTeamHtml}</span>
+                    <strong class="match-score">${playerGoals}:${opponentGoals}</strong>
+                    <span class="team-display">${opponentTeamHtml}</span>
+                </div>
+                <div class="elo-change">
+                    ${changeSpanText}
+                </div>
+            `;
+            container.appendChild(li);
+        });
     }
 
     close() {

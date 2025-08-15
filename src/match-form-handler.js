@@ -4,7 +4,7 @@ import { db, doc, addDoc, updateDoc, collection } from './firebase-service.js';
 import { expectedScore, updateRating } from './elo-service.js';
 import { getOrCreatePlayer } from './player-manager.js';
 // import { showLeaderboard } from './leaderboard-display.js';
-import { stopRecentMatchesListeners } from './recent-matches-display.js';
+// import { stopRecentMatchesListeners } from './recent-matches-display.js';
 import {
     teamA1Select, teamA2Select, teamB1Select, teamB2Select,
     teamAgoalsInput, teamBgoalsInput, submitMatchBtn, matchForm
@@ -91,10 +91,7 @@ export function setupMatchForm() {
 
         alert("Match submitted!");
 
-        // Reset matchRefresh player dropdowns and leaderboard
         resetMatchForm();
-        // await showLeaderboard();
-        stopRecentMatchesListeners();
     });
 }
 
@@ -231,3 +228,37 @@ makeRodDraggable(document.getElementById("red-defense-rod"), {maxLeft: -7, maxRi
 makeRodDraggable(document.getElementById("red-offense-rod"), {maxLeft: -9, maxRight: 5});
 makeRodDraggable(document.getElementById("blue-defense-rod"), {maxLeft: -5, maxRight: 7});
 makeRodDraggable(document.getElementById("blue-offense-rod"), {maxLeft: -5, maxRight: 9});
+
+
+const redTeamArrow = document.querySelector('#g20');
+const blueTeamArrow = document.querySelector('#g34');
+
+export function updateTeamArrowState(team, reset = false) {
+    const isTeamA = team === 'A';
+    const select1 = isTeamA ? teamA1Select : teamB1Select;
+    const select2 = isTeamA ? teamA2Select : teamB2Select;
+    const arrow = isTeamA ? redTeamArrow : blueTeamArrow;
+
+    // Check if reset is set or if both dropdowns have values
+    const isComplete = !reset && (select1.value.trim() || select2.value.trim());
+
+    // Update arrow color - using team colors from your existing code
+    // const color = isComplete ? (isTeamA ? '#ce848c' : '#6cabc2') : '#00000000';
+    const color = isComplete ? (isTeamA ? '#999999' : '#999999') : '#00000000';
+    arrow.querySelectorAll('path').forEach(path => {
+        path.style.stroke = color;
+    });
+}
+
+// Add event listeners to all dropdowns
+[teamA1Select, teamA2Select].forEach(select => {
+    select.addEventListener('change', () => updateTeamArrowState('A'));
+});
+
+[teamB1Select, teamB2Select].forEach(select => {
+    select.addEventListener('change', () => updateTeamArrowState('B'));
+});
+
+// Initial state update
+updateTeamArrowState('A', true);
+updateTeamArrowState('B', true);

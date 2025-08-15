@@ -234,6 +234,11 @@ button:hover {
   font-size: 16px;
 }
 
+/*.shared-list li:hover {*/
+/*    transform: translateY(-2px);*/
+/*    box-shadow: 0 4px 8px rgba(0,0,0,0.2);*/
+/*}*/
+
 /* Metallic Effects for Top 3 Spots */
 .gold {
   /* background: linear-gradient(45deg, #bfa600, #e6b800, #ffd700, #ffe750) !important; */

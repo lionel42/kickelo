@@ -1,76 +1,86 @@
-import { db, collection, doc, getDoc, setDoc, query, orderBy, getDocs } from './firebase-service.js';
+// Import from the data service and for write/check operations
+import { db, doc, getDoc, setDoc } from './firebase-service.js';
+import { allPlayers } from './player-data-service.js';
 import { teamA1Select, teamA2Select, teamB1Select, teamB2Select } from './dom-elements.js';
 
-// Helper to get or create a player document
+/**
+ * Checks if a player exists and creates them if they don't.
+ * This function still needs to interact with Firestore for certainty and for write operations.
+ * @param {string} name - The name of the player.
+ * @returns {Promise<object>} The player's data.
+ */
 export async function getOrCreatePlayer(name) {
+    // First, check the local cache for efficiency.
+    const existingPlayer = allPlayers.find(p => p.id === name);
+    if (existingPlayer) {
+        return existingPlayer;
+    }
+
+    // If not in cache, check Firestore to be certain before creating.
     const playerDocRef = doc(db, 'players', name);
     const docSnap = await getDoc(playerDocRef);
     if (!docSnap.exists()) {
-        await setDoc(playerDocRef, { name: name, elo: 1500, games: 0 });
-        return { name, elo: 1500, games: 0 };
+        // Create the player. The player-data-service will pick up this change automatically.
+        console.log(`Creating new player in Firestore: ${name}`);
+        const newPlayerData = { name: name, elo: 1500, games: 0 };
+        await setDoc(playerDocRef, newPlayerData);
+        return newPlayerData;
     } else {
+        // This case is rare if the cache is up to date, but handles edge cases.
         return docSnap.data();
     }
 }
 
-export async function loadPlayerDropdowns() {
+/**
+ * Populates the player selection dropdowns from the local 'allPlayers' array.
+ */
+function updatePlayerDropdowns() {
     const playerSelects = [teamA1Select, teamA2Select, teamB1Select, teamB2Select];
-    try {
-        console.log("Fetching players from Firestore...");
-        const playersColRef = collection(db, 'players');
-        const snapshot = await getDocs(playersColRef);
-        const players = snapshot.docs.map(doc => doc.id).sort(); // Sort players alphabetically
-        console.log("Fetched players:", players);
+    
+    // Sort players from the local array alphabetically by their ID (name).
+    const players = allPlayers.map(p => p.id).sort();
+    console.log("Updating player dropdowns from local data...");
 
-        if (players.length === 0) {
-            console.warn("No players found in the database.");
+    for (const select of playerSelects) {
+        if (!select) continue;
+
+        const previousValue = select.value;
+        select.innerHTML = ""; // Clear old options
+
+        const defaultOpt = document.createElement("option");
+        defaultOpt.value = "";
+        const color = select.id.startsWith("teamA") ? "Red" : "Blue";
+        const role = select.id.endsWith("1") ? "defense" : "offense";
+        defaultOpt.textContent = `${color} ${role}`;
+        select.appendChild(defaultOpt);
+
+        for (const name of players) {
+            const opt = document.createElement("option");
+            opt.value = name;
+            opt.textContent = name;
+            select.appendChild(opt);
         }
 
-        for (const select of playerSelects) {
-            if (!select) {
-                console.error(`Dropdown element not found.`); // More generic error as we're passing elements now
-                continue;
-            }
+        const newOpt = document.createElement("option");
+        newOpt.value = "__add_new__";
+        newOpt.textContent = "Add new player…";
+        select.appendChild(newOpt);
 
-            const previousValue = select.value;
-            select.innerHTML = ""; // Clear old options
-
-            const defaultOpt = document.createElement("option");
-            defaultOpt.value = "";
-            const color = select.id.startsWith("teamA") ? "Red" : "Blue";
-            const role = select.id.endsWith("1") ? "defense" : "offense";
-            defaultOpt.textContent = `${color} ${role}`;
-            select.appendChild(defaultOpt);
-
-            for (const name of players) {
-                const opt = document.createElement("option");
-                opt.value = name;
-                opt.textContent = name;
-                select.appendChild(opt);
-            }
-
-            const newOpt = document.createElement("option");
-            newOpt.value = "__add_new__";
-            newOpt.textContent = "Add new player…";
-            select.appendChild(newOpt);
-
-            if (previousValue && players.includes(previousValue)) {
-                select.value = previousValue;
-            }
-
-            // Remove existing listener to prevent duplicates if called multiple times
-            select.removeEventListener("change", handlePlayerDropdownChange);
-            select.addEventListener("change", handlePlayerDropdownChange);
+        // Restore previous selection if it's still a valid player
+        if (previousValue && players.includes(previousValue)) {
+            select.value = previousValue;
         }
-    } catch (error) {
-        console.error("Error loading player dropdowns:", error);
     }
 }
 
-// Handler for dropdown change, separated for reusability
+/**
+ * Handles the 'Add new player…' option in the dropdowns.
+ * @param {Event} e - The change event from the select element.
+ */
 async function handlePlayerDropdownChange(e) {
     if (e.target.value === "__add_new__") {
         const newName = prompt("Enter new player name:");
+        
         if (newName) {
             const trimmedName = newName.trim();
             if (!trimmedName) {
@@ -85,25 +95,52 @@ async function handlePlayerDropdownChange(e) {
                 return;
             }
 
-            const playerDocRef = doc(db, 'players', trimmedName);
-            const existingDoc = await getDoc(playerDocRef);
-            if (existingDoc.exists()) {
-                alert(`Player "${trimmedName}" already exists. Please choose a different name.`);
+            // Check for existence using the local cache first for speed.
+            const playerExists = allPlayers.some(p => p.id === trimmedName);
+            if (playerExists) {
+                alert(`Player "${trimmedName}" already exists.`);
                 e.target.value = "";
                 return;
             }
+            // The dropdowns will update automatically via the event listener,
+            // but we can try to set the value here for a faster UI response.
 
-            console.log(`Adding new player: ${trimmedName}`);
-            await setDoc(playerDocRef, {
-                name: trimmedName,
-                elo: 1500,
-                games: 0
-            });
-            await loadPlayerDropdowns(); // Reload dropdowns to include the new player
-            e.target.value = trimmedName; // Select the newly added player
+            const opt = document.createElement("option");
+            opt.value = trimmedName;
+            opt.textContent = trimmedName;
+            e.target.appendChild(opt);
+            e.target.value = trimmedName;
+
+            // This write will be picked up by the player-data-service listener,
+            // which will then fire the 'players-updated' event, triggering updatePlayerDropdowns.
+            // await getOrCreatePlayer(trimmedName);
+
         } else {
-            console.log("Add new player canceled.");
-            e.target.value = ""; // Reset dropdown to default
+            e.target.value = ""; // Reset dropdown if user cancels prompt
         }
     }
+}
+
+/**
+ * Initializes the player manager functionality.
+ * Call this once when the app starts.
+ */
+export function initializePlayerManager() {
+    // Initial population of dropdowns using whatever data is currently in the cache.
+    updatePlayerDropdowns();
+
+    // Listen for updates from the player data service to keep dropdowns in sync.
+    window.addEventListener('players-updated', updatePlayerDropdowns);
+
+    // Attach event listeners to dropdowns for the 'Add new player' functionality.
+    const playerSelects = [teamA1Select, teamA2Select, teamB1Select, teamB2Select];
+    playerSelects.forEach(select => {
+        if (select) {
+            // Ensure we don't attach the listener multiple times if this is ever re-run.
+            select.removeEventListener("change", handlePlayerDropdownChange);
+            select.addEventListener("change", handlePlayerDropdownChange);
+        }
+    });
+
+    console.log("Player manager initialized and listening for 'players-updated' event.");
 }
