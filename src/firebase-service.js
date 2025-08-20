@@ -18,7 +18,7 @@ import {
     connectFirestoreEmulator,
     onSnapshot,
 } from 'firebase/firestore';
-// import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { getAuth, signInAnonymously, onAuthStateChanged, connectAuthEmulator } from 'firebase/auth';
 
 
 const firebaseConfig = {
@@ -40,13 +40,36 @@ initializeFirestore(app,
 
 const db = getFirestore(app);
 
+export const auth = getAuth(app);
+
 if (import.meta.env.DEV) {
   // Firestore emulator
-  // connectFirestoreEmulator(db, '127.0.0.1', 7070);
+  connectFirestoreEmulator(db, '127.0.0.1', 7070);
   // Auth emulator (currently not used)
-  // const auth = getAuth(app);
-  // connectAuthEmulator(auth, 'http://127.0.0.1:9099');
+  const auth = getAuth(app);
+  connectAuthEmulator(auth, 'http://127.0.0.1:9099');
 }
+
+// Sign the user in anonymously when the app loads
+signInAnonymously(auth)
+  .then(() => {
+    console.log("User signed in anonymously.");
+    // You can use onAuthStateChanged to see user details if needed
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // User is signed in, see docs for a list of available properties
+        // https://firebase.google.com/docs/reference/js/firebase.User
+        const uid = user.uid;
+        console.log("Anonymous User ID:", uid);
+      } else {
+        // User is signed out
+        console.log("User is signed out.");
+      }
+    });
+  })
+  .catch((error) => {
+    console.error("Anonymous sign-in failed:", error);
+  });
 
 // Export db and all necessary Firestore functions
 export {
