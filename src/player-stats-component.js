@@ -604,11 +604,11 @@ customElements.define('player-stats-component', PlayerStatsComponent);
 export function showPlayerStats(playerName) {
     const backdrop = document.getElementById('playerStatsBackdrop');
     if (!backdrop) { console.error("playerStatsBackdrop not found."); return; }
+    backdrop.innerHTML = '';
+    backdrop.classList.add('visible');
     const component = document.createElement('player-stats-component');
     component.setAttribute('player-name', playerName);
-    backdrop.innerHTML = '';
     backdrop.appendChild(component);
-    backdrop.classList.add('visible');
     if (history.state?.modal !== 'playerStatsModalOpen') {
         history.pushState({ modal: 'playerStatsModalOpen' }, '');
     }

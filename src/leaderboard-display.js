@@ -1,5 +1,5 @@
 // Import from the new player data service instead of firebase
-import { allPlayers, initializePlayersData } from './player-data-service.js';
+import { allPlayers} from './player-data-service.js';
 import { leaderboardList } from './dom-elements.js';
 import { getCurrentStreak, getDailyEloChanges } from './player-stats-service.js';
 
@@ -89,8 +89,6 @@ async function updateLeaderboardDisplay() {
  * Initializes the leaderboard. Call this once when the app starts.
  */
 export function initializeLeaderboardDisplay() {
-    // First, initialize the data fetching service
-    initializePlayersData();
 
     // Then, listen for the custom events to re-render
     window.addEventListener('matches-updated', updateLeaderboardDisplay);

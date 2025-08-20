@@ -1,4 +1,4 @@
-import { db, collection, onSnapshot } from './firebase-service.js';
+import {collection, db, onSnapshot} from './firebase-service.js';
 
 // This array will hold all player data, kept in sync by the listener.
 export let allPlayers = [];
@@ -18,11 +18,11 @@ export function initializePlayersData() {
 
     const playersColRef = collection(db, 'players');
 
-    onSnapshot(playersColRef, (snapshot) => {
+    return onSnapshot(playersColRef, (snapshot) => {
         console.log("Player data updated from Firestore.");
         const playersData = [];
         snapshot.forEach((doc) => {
-            playersData.push({ id: doc.id, ...doc.data() });
+            playersData.push({id: doc.id, ...doc.data()});
         });
 
         allPlayers = playersData;
@@ -35,7 +35,6 @@ export function initializePlayersData() {
             window.dispatchEvent(new CustomEvent('players-updated'));
             console.log("Dispatched 'players-updated' event.");
         }, 250);
-
     }, (error) => {
         console.error("Error listening to players collection:", error);
     });
