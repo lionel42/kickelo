@@ -1,10 +1,9 @@
 // src/match-form-handler.js
 
 import { db, doc, addDoc, updateDoc, collection } from './firebase-service.js';
+import { serverTimestamp } from "firebase/firestore";
 import { expectedScore, updateRating } from './elo-service.js';
 import { getOrCreatePlayer } from './player-manager.js';
-// import { showLeaderboard } from './leaderboard-display.js';
-// import { stopRecentMatchesListeners } from './recent-matches-display.js';
 import {
     teamA1Select, teamA2Select, teamB1Select, teamB2Select,
     teamAgoalsInput, teamBgoalsInput, submitMatchBtn, matchForm
@@ -79,19 +78,22 @@ export function setupMatchForm() {
         ]);
 
         // Add match log
-        await addDoc(matchesColRef, {
-            teamA: [tA1, tA2],
-            teamB: [tB1, tB2],
-            winner: winner,
-            goalsA: parsedGoalsA,
-            goalsB: parsedGoalsB,
-            eloDelta: Math.abs(delta),
-            timestamp: Date.now(),
-        });
-
-        alert("Match submitted!");
-
-        resetMatchForm();
+        try {
+            await addDoc(matchesColRef, {
+                teamA: [tA1, tA2],
+                teamB: [tB1, tB2],
+                winner: winner,
+                goalsA: parsedGoalsA,
+                goalsB: parsedGoalsB,
+                eloDelta: Math.abs(delta),
+                timestamp: serverTimestamp(),
+            });
+            alert("Match submitted!");
+            resetMatchForm();
+        } catch (error) {
+            console.error("Error submitting match:", error);
+            alert("Failed to submit match. Check the console for more details.");
+        }
     });
 }
 

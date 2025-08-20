@@ -1,18 +1,73 @@
-rules_version='2'
+rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2025, 8, 22);
+
+    // =====================================================================
+    // Helper Functions
+    // =====================================================================
+
+    // A simple function to check if the user is signed in to your app.
+    // This is the foundation of our security.
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // =====================================================================
+    // Collection Rules
+    // =====================================================================
+
+    // --- Rules for the 'players' collection ---
+    match /players/{playerName} {
+
+      // READ: Anyone using the app can read player profiles and leaderboards.
+      allow get, list: if isSignedIn();
+
+      // CREATE: A new player can be created by any signed-in user,
+      // but we enforce that they start with the default ELO and game count.
+      allow create: if isSignedIn()
+                    && request.resource.data.name == playerName
+                    && request.resource.data.elo == 1500
+                    && request.resource.data.games == 0
+                    && request.resource.data.size() == 3; // Ensures no extra fields
+
+      // UPDATE: Allow updates only if the user is signed in and provides valid data types.
+      // This prevents users from corrupting their data, e.g., setting ELO to a string.
+      allow update: if isSignedIn()
+                    && request.resource.data.name == resource.data.name // Player name cannot be changed
+                    && request.resource.data.elo is number
+                    && request.resource.data.games is number;
+    }
+
+    // --- Rules for the 'matches' collection ---
+    match /matches/{matchId} {
+
+      // READ: Anyone using the app can read the match history for stats.
+      allow get, list: if isSignedIn();
+
+      // CREATE: Anyone can log a new match, but the data must be valid.
+      // This is our most important validation rule.
+      allow create: if isSignedIn()
+                    && request.resource.data.teamA is list
+                    && request.resource.data.teamA.size() <= 2 // Allow 1v1 or 2v2
+                    && request.resource.data.teamB is list
+                    && request.resource.data.teamB.size() <= 2
+                    && request.resource.data.winner is string
+                    && (request.resource.data.winner == 'A' || request.resource.data.winner == 'B')
+                    && request.resource.data.goalsA is number
+                    && request.resource.data.goalsB is number
+                    && request.resource.data.eloDelta is number
+                    && request.resource.data.timestamp == request.time; // Enforce server timestamp
+
+      // Matches cannot be updated or deleted from the client.
+      allow update, delete: if false;
+    }
+
+    // --- Rules for the 'meta' collection (for session data) ---
+    match /meta/{docId} {
+      // Allow any signed-in user to read and write session data,
+      // like the list of active players for pairing suggestions.
+      allow read, write: if isSignedIn();
     }
   }
 }
