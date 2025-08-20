@@ -92,8 +92,9 @@ export function initializeLeaderboardDisplay() {
     // First, initialize the data fetching service
     initializePlayersData();
 
-    // Then, listen for the custom event to re-render
+    // Then, listen for the custom events to re-render
     window.addEventListener('matches-updated', updateLeaderboardDisplay);
+    window.addEventListener('players-updated', updateLeaderboardDisplay);
 
     // Perform an initial render in case data is already available from cache
     updateLeaderboardDisplay();

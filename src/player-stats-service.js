@@ -127,10 +127,9 @@ export function getEloGainsAndLosses(playerName) {
 
         opponents.forEach(opponent => {
             if (!netEloChanges[opponent]) netEloChanges[opponent] = 0;
-            // Note: The original logic had a * 0.5 which might be a bug.
-            // Assuming the full delta is attributed to each opponent for the stat.
-            if (playerWasWinner) netEloChanges[opponent] += eloDelta;
-            else netEloChanges[opponent] -= eloDelta;
+            // multiply by 0.5 to account for the fact that ELO is shared between two players
+            if (playerWasWinner) netEloChanges[opponent] += eloDelta * 0.5;
+            else netEloChanges[opponent] -= eloDelta * 0.5;
         });
     }
     return netEloChanges;
@@ -199,7 +198,6 @@ export function getLongestStreaks(playerName) {
 
 /**
  * Gets the ELO difference for every player since the start of the current day.
- * This is now a synchronous function.
  * @returns {Object<string, number>} An object mapping player names to their ELO change today.
  */
 export function getDailyEloChanges() {
@@ -236,4 +234,49 @@ export function getDailyEloChanges() {
     }
 
     return playerEloChanges;
+}
+
+/**
+ * @param {string} playerName - The name of the player.
+ * @returns {{score: number, totalWins: number, totalLosses: number}}
+ */
+export function getStreakyness(playerName) {
+    if (!isMatchesDataReady) return { score: 1, totalWins: 0, totalLosses: 0 };
+
+    const relevantMatches = allMatches
+        .filter(match => match.teamA.includes(playerName) || match.teamB.includes(playerName))
+        .reverse(); // Chronological order (oldest first) is needed for this calculation
+
+    const n = relevantMatches.length;
+    if (n < 2) return { score: 1, totalWins: 0, totalLosses: 0 };
+
+    const results = relevantMatches.map(match => {
+        const isPlayerInTeamA = match.teamA.includes(playerName);
+        return (isPlayerInTeamA && match.winner === 'A') || (!isPlayerInTeamA && match.winner === 'B');
+    });
+
+    let wins = 0;
+    let consecutiveSame = 0;
+    for (let i = 0; i < n; i++) {
+        if (results[i]) wins++;
+        if (i > 0 && results[i] === results[i-1]) {
+            consecutiveSame++;
+        }
+    }
+
+    const losses = n - wins;
+    const pConsecutive = consecutiveSame / (n - 1);
+
+    // Probability of two random matches having the same result
+    const pWin = wins / n;
+    const pLoss = losses / n;
+    const pRandomSame = (pWin * pWin) + (pLoss * pLoss);
+
+    if (pRandomSame === 0) return { score: 1, totalWins: wins, totalLosses: losses }; // Avoid division by zero
+
+    return {
+        score: pConsecutive / pRandomSame,
+        totalWins: wins,
+        totalLosses: losses
+    };
 }
