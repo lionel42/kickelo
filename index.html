@@ -276,24 +276,24 @@
 <!--        <button id="swapTeamB" class="overlay-button invisible_swap_button" style="left: 92.5%; top: 57.5%;">Swap</button>-->
     </div>
     <div style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
-      <label for="liveModeToggle" style="font-weight: bold;">Goal Logging:</label>
-      <button id="toggleLiveMode" type="button">Final Score Mode</button>
-      <span id="liveModeStatus" style="font-size: 0.9em; color: #888;"></span>
+      <button id="toggleLiveMode" type="button">Start live mode</button>
     </div>
+      <span id="liveModeStatus" style="font-size: 0.9em; color: #888;"></span>
     <div id="liveMatchPanel" style="display: none; flex-direction: column; gap: 8px; margin-bottom: 10px;">
       <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 2px;">
-        <span id="liveMatchTimer" style="font-size: 1.2em; font-family: monospace; color: #fff; background: #222; border-radius: 4px; padding: 2px 10px; min-width: 60px; text-align: center; display: none;">00:00</span>
+        <span id="liveMatchTimer" style="font-size: 1.2em; font-family: monospace; background: #222; border-radius: 4px; padding: 2.5px 10px; min-width: 60px; text-align: center; display: none;">00:00</span>
+        <button id="cancelLiveMode" type="button" style="display: none; background-color: #333">Cancel</button>
       </div>
       <div style="display: flex; gap: 10px;">
-        <button id="btnBlueScored" type="button" class="blue_select">Blue scored</button>
         <button id="btnRedScored" type="button" class="red_select">Red scored</button>
+        <button id="btnBlueScored" type="button" class="blue_select">Blue scored</button>
       </div>
-      <div id="goalTimeline" style="margin-top: 5px; min-height: 24px;"></div>
+      <div id="goalTimeline"></div>
     </div>
     <div style="display: flex; gap: 10px;">
-      <button type="button" id="swapTeams">Swap</button>
-      <button id="btnSuggest">Suggest</button>
-      <button type="submit" id="submitMatchBtn">Submit</button>
+      <button type="button" id="swapTeams">Swap teams</button>
+      <button id="btnSuggest">Suggest pairing</button>
+      <button type="submit" id="submitMatchBtn">Submit match</button>
     </div>
   </div>
 

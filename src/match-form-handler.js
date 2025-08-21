@@ -38,6 +38,10 @@ export function setupMatchForm() {
         if (parsedGoalsA > MAX_GOALS || parsedGoalsB > MAX_GOALS) {
             return alert(`Goals cannot exceed ${MAX_GOALS}.`);
         }
+        // Enforce that one team has exactly MAX_GOALS and the other less
+        if (!(parsedGoalsA === MAX_GOALS && parsedGoalsB < MAX_GOALS) && !(parsedGoalsB === MAX_GOALS && parsedGoalsA < MAX_GOALS)) {
+            return alert(`One team must have exactly ${MAX_GOALS} goals, the other less.`);
+        }
         if (!tA1 || !tA2 || !tB1 || !tB2) return alert("Enter all player names");
         if (new Set([tA1, tA2, tB1, tB2]).size < 4) {
             return alert("All players must be different");
@@ -185,10 +189,14 @@ function setLiveMode(enabled) {
     }
     liveMode = enabled;
     liveMatchPanel.style.display = enabled ? 'flex' : 'none';
+    toggleLiveMode.style.display = enabled ? 'none' : '';
+    const cancelBtn = document.getElementById('cancelLiveMode');
+    if (cancelBtn) cancelBtn.style.display = enabled ? '' : 'none';
     toggleLiveMode.classList.toggle('active', enabled);
-    toggleLiveMode.textContent = enabled ? 'Live Match Mode' : 'Final Score Mode';
-    liveModeStatus.textContent = enabled ? 'Log each goal as it happens.' : 'Enter only the final score.';
-    // Disable/enable manual score selectors
+    toggleLiveMode.textContent = enabled ? 'Live Match Mode' : 'Start live mode';
+    // Fix: Hide liveModeStatus span when not needed to remove gap
+    liveModeStatus.style.display = enabled ? '' : 'none';
+    liveModeStatus.textContent = '';
     teamAgoalsInput.disabled = enabled;
     teamBgoalsInput.disabled = enabled;
     if (enabled) {
@@ -197,14 +205,35 @@ function setLiveMode(enabled) {
         renderGoalTimeline();
         teamAgoalsInput.value = '0';
         teamBgoalsInput.value = '0';
-        // Start live timer
         startLiveMatchTimer();
+        // Fix: Always show timer when live mode starts
+        const timerElem = document.getElementById('liveMatchTimer');
+        if (timerElem) timerElem.style.display = 'inline-block';
     } else {
         matchStartTime = null;
         goalLog = [];
         renderGoalTimeline();
         stopLiveMatchTimer();
+        // Fix: Hide timer when not in live mode
+        const timerElem = document.getElementById('liveMatchTimer');
+        if (timerElem) timerElem.style.display = 'none';
     }
+}
+
+function syncScoreSelectors() {
+    // Always update selectors in live mode
+    let redGoals = goalLog.filter(g => g.team === 'red').length;
+    let blueGoals = goalLog.filter(g => g.team === 'blue').length;
+    teamAgoalsInput.value = redGoals;
+    teamBgoalsInput.value = blueGoals;
+}
+
+// Cancel button logic
+const cancelBtn = document.getElementById('cancelLiveMode');
+if (cancelBtn) {
+    cancelBtn.addEventListener('click', () => {
+        setLiveMode(false);
+    });
 }
 
 function startLiveMatchTimer() {
@@ -253,7 +282,7 @@ function renderGoalTimeline() {
         div.textContent = `${goal.team === 'red' ? 'Red' : 'Blue'} #${goal.team === 'red' ? redGoals : blueGoals} (${timeStr})`;
         // Add remove button
         const btn = document.createElement('button');
-        btn.className = 'goal-log-remove';
+        btn.className = 'goal-remove-btn';
         btn.type = 'button';
         btn.title = 'Remove this goal';
         btn.innerHTML = '&times;';
@@ -262,32 +291,43 @@ function renderGoalTimeline() {
                 goalLog.splice(idx, 1);
                 renderGoalTimeline();
                 syncScoreSelectors();
+                updateScoredButtons();
             }
         };
         div.appendChild(btn);
         goalTimeline.appendChild(div);
     });
     syncScoreSelectors();
+    updateScoredButtons();
 }
 
-function syncScoreSelectors() {
-    // Only update if in live mode
-    if (!liveMode) return;
-    let redGoals = goalLog.filter(g => g.team === 'red').length;
-    let blueGoals = goalLog.filter(g => g.team === 'blue').length;
-    teamAgoalsInput.value = redGoals;
-    teamBgoalsInput.value = blueGoals;
+function updateScoredButtons() {
+    if (!liveMode) {
+        btnRedScored.disabled = false;
+        btnBlueScored.disabled = false;
+        return;
+    }
+    const redGoals = goalLog.filter(g => g.team === 'red').length;
+    const blueGoals = goalLog.filter(g => g.team === 'blue').length;
+    btnRedScored.disabled = redGoals >= MAX_GOALS;
+    btnBlueScored.disabled = blueGoals >= MAX_GOALS;
 }
 
 btnRedScored.addEventListener('click', () => {
     if (!liveMode) return;
+    const redGoals = goalLog.filter(g => g.team === 'red').length;
+    if (redGoals >= MAX_GOALS) return;
     goalLog.push({ team: 'red', timestamp: Date.now() - matchStartTime });
     renderGoalTimeline();
+    syncScoreSelectors(); // Ensure score display updates
 });
 btnBlueScored.addEventListener('click', () => {
     if (!liveMode) return;
+    const blueGoals = goalLog.filter(g => g.team === 'blue').length;
+    if (blueGoals >= MAX_GOALS) return;
     goalLog.push({ team: 'blue', timestamp: Date.now() - matchStartTime });
     renderGoalTimeline();
+    syncScoreSelectors(); // Ensure score display updates
 });
 
 

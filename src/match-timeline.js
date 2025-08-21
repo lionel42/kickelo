@@ -16,7 +16,7 @@ export function createTimelineSVG(goalLog, width = 400) {
     const lineY = height / 2;
     const dotRadius = 5;
     const dotOffset = 8; // Offset for goal dots above/below the line
-    const markersHeight = 12; // Height of minute markers above the line
+    const markersHeight = 8; // Height of minute markers above the line
     const lineStart = margin;
     const lineEnd = width - margin;
     const totalTime = goalLog[goalLog.length - 1].timestamp || 0;
@@ -32,9 +32,13 @@ export function createTimelineSVG(goalLog, width = 400) {
     const dots = goalLog.map((goal) => {
         const x = lineStart + ((lineEnd - lineStart) * Math.min(goal.timestamp, totalTime) / totalTime);
         const y = goal.team === 'red' ? lineY - dotOffset : lineY + dotOffset;
+        // use colors from css
+        // const color = goal.team === 'red' ? '#cc6a75' : '#6baac0';
+        // const color = goal.team === 'red' ? 'rgba(106, 37, 45, 0.8)' : 'rgba(49, 76, 86, 0.8)';
+        const stroke_color = goal.team === 'red' ? '#cc6a75' : '#6baac0';
         const color = goal.team === 'red' ? '#cc6a75' : '#6baac0';
         const title = `${goal.team === 'red' ? 'Red' : 'Blue'} goal at ${formatMsToMMSS(goal.timestamp)}`;
-        return `<circle cx="${x}" cy="${y}" r="${dotRadius}" fill="${color}" fill-opacity="0.8"><title>${title}</title></circle>`;
+        return `<circle cx="${x}" cy="${y}" r="${dotRadius}" fill="${color}" stroke="${stroke_color}" stroke-width="0" fill-opacity="0.8"><title>${title}</title></circle>`;
     }).join('');
     // Timeline line
     const line = `<line x1="${lineStart}" y1="${lineY}" x2="${lineEnd}" y2="${lineY}" stroke="#888" stroke-width="2" />`;
