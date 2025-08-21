@@ -1,6 +1,7 @@
 // Import the shared, centrally-managed match data
 import { allMatches } from './match-data-service.js';
 import { recentMatchesList, recentMatchesHeading } from './dom-elements.js';
+import { createTimelineWithLabel } from './match-timeline.js';
 
 
 function createMatchListItem(match) {
@@ -19,6 +20,13 @@ function createMatchListItem(match) {
     const loserGoals = match.winner === "A" ? goalsB : goalsA;
 
     li.innerHTML = `${winner} ${winnerGoals}:${loserGoals} ${loser} <span style="font-size: 0.9em; color: gray;">(Elo Δ: ${match.eloDelta || 0})</span>`;
+    // If live match, add timeline
+    if (Array.isArray(match.goalLog) && match.goalLog.length > 0) {
+        const timelineWithLabel = createTimelineWithLabel(match.goalLog);
+        if (timelineWithLabel) {
+            li.appendChild(timelineWithLabel);
+        }
+    }
     return li;
 }
 

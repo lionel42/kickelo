@@ -12,6 +12,7 @@ import {
 import { allMatches } from './match-data-service.js';
 import { MAX_GOALS } from './constants.js';
 import Chart from "chart.js/auto";
+import { createTimelineWithLabel } from './match-timeline.js';
 
 // Define the HTML template for the component using a template literal
 const template = document.createElement('template');
@@ -245,8 +246,9 @@ template.innerHTML = `
 
         .match-item {
             display: flex;
-            align-items: center;
-            justify-content: space-between;
+            flex-direction: column;
+            align-items: stretch;
+            justify-content: flex-start;
             padding: 10px 12px;
             background-color: var(--background-color-primary);
             margin-bottom: 6px;
@@ -254,7 +256,12 @@ template.innerHTML = `
             border-left: 5px solid transparent;
             transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
-
+        .match-info-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
         .match-item.win {
             border-left-color: #86e086;
         }
@@ -633,7 +640,23 @@ class PlayerStatsComponent extends HTMLElement {
             const playerTeamHtml = isPlayerInTeamA ? teamAPlayers : teamBPlayers;
             const opponentTeamHtml = isPlayerInTeamA ? teamBPlayers : teamAPlayers;
             const changeSpanText = playerWon ? `<span style="color: #86e086">▲ ${Math.round(match.eloDelta)}</span>` : `<span style="color: #ff7b7b">▼ ${Math.round(Math.abs(match.eloDelta))}</span>`;
-            li.innerHTML = ` <div class="match-info"> <span class="team-display">${playerTeamHtml}</span> <strong class="match-score">${playerGoals}:${opponentGoals}</strong> <span class="team-display">${opponentTeamHtml}</span> </div> <div class="elo-change"> ${changeSpanText} </div> `;
+            // Render match info and ELO change in a flex row
+            const infoRow = document.createElement('div');
+            infoRow.className = 'match-info-row';
+            infoRow.style.display = 'flex';
+            infoRow.style.alignItems = 'center';
+            infoRow.style.justifyContent = 'space-between';
+            infoRow.innerHTML = ` <div class="match-info"> <span class="team-display">${playerTeamHtml}</span> <strong class="match-score">${playerGoals}:${opponentGoals}</strong> <span class="team-display">${opponentTeamHtml}</span> </div> <div class="elo-change"> ${changeSpanText} </div> `;
+            li.appendChild(infoRow);
+            // Add timeline for live matches below the info row
+            if (Array.isArray(match.goalLog) && match.goalLog.length > 0) {
+                const timelineWithLabel = createTimelineWithLabel(match.goalLog);
+                if (timelineWithLabel) {
+                    timelineWithLabel.style.marginTop = '4px';
+                    timelineWithLabel.style.width = '100%';
+                    li.appendChild(timelineWithLabel);
+                }
+            }
             container.appendChild(li);
         });
     }

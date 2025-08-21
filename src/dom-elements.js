@@ -18,6 +18,13 @@ const teamBgoalsInput = document.getElementById("teamBgoals");
 const submitMatchBtn = document.getElementById("submitMatchBtn");
 const matchForm = document.getElementById("matchForm");
 
+const toggleLiveMode = document.getElementById("toggleLiveMode");
+const liveMatchPanel = document.getElementById("liveMatchPanel");
+const btnBlueScored = document.getElementById("btnBlueScored");
+const btnRedScored = document.getElementById("btnRedScored");
+const goalTimeline = document.getElementById("goalTimeline");
+const liveModeStatus = document.getElementById("liveModeStatus");
+
 
 export {
     backdrop,
@@ -35,7 +42,13 @@ export {
     teamAgoalsInput,
     teamBgoalsInput,
     submitMatchBtn,
-    matchForm
+    matchForm,
+    toggleLiveMode,
+    liveMatchPanel,
+    btnBlueScored,
+    btnRedScored,
+    goalTimeline,
+    liveModeStatus
 };
 
 // export const playerStatsBackdrop = document.getElementById('playerStatsBackdrop');

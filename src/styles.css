@@ -296,6 +296,93 @@ button:hover {
   border-image-source: linear-gradient(white, white) !important;
 }
 
+/* Live Match Mode Styles */
+#liveMatchPanel {
+  background: var(--background-color-light);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+#liveMatchPanel button {
+  font-size: 1em;
+  padding: 6px 16px;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+}
+#btnBlueScored {
+  background: var(--blue-team-color);
+  color: #fff;
+}
+#btnRedScored {
+  background: var(--red-team-color);
+  color: #fff;
+}
+#goalTimeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  min-height: 24px;
+}
+.goal-log-item {
+  display: flex;
+  align-items: center;
+  background: #222;
+  border-radius: 4px;
+  padding: 2px 8px 2px 6px;
+  font-size: 0.98em;
+  color: #eee;
+  border: 1px solid #444;
+  margin-right: 2px;
+}
+.goal-log-item.red {
+  border-left: 4px solid var(--red-team-color);
+}
+.goal-log-item.blue {
+  border-left: 4px solid var(--blue-team-color);
+}
+.goal-log-remove {
+  margin-left: 6px;
+  color: #aaa;
+  background: none;
+  border: none;
+  font-size: 1.1em;
+  cursor: pointer;
+  padding: 0;
+  width: 1.7em;
+  height: 1.7em;
+  min-width: 1.7em;
+  min-height: 1.7em;
+  max-width: 1.7em;
+  max-height: 1.7em;
+  line-height: 1.7em;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.goal-log-remove:hover {
+  color: #fff;
+  background: #a00;
+}
+#toggleLiveMode {
+  background: var(--button-secondary-bg);
+  color: var(--button-secondary-text);
+  border: none;
+  border-radius: 5px;
+  padding: 5px 14px;
+  cursor: pointer;
+  font-size: 1em;
+  transition: background 0.15s;
+}
+#toggleLiveMode.active {
+  background: var(--accent-blue);
+  color: #fff;
+}
+
 /* Responsive Design */
 @media (max-width: 600px) {
   body {

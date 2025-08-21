@@ -6,7 +6,8 @@ import { expectedScore, updateRating } from './elo-service.js';
 import { getOrCreatePlayer } from './player-manager.js';
 import {
     teamA1Select, teamA2Select, teamB1Select, teamB2Select,
-    teamAgoalsInput, teamBgoalsInput, submitMatchBtn, matchForm
+    teamAgoalsInput, teamBgoalsInput, submitMatchBtn, matchForm,
+    toggleLiveMode, liveMatchPanel, btnBlueScored, btnRedScored, goalTimeline, liveModeStatus
 } from './dom-elements.js';
 import { MAX_GOALS } from './constants.js';
 
@@ -18,15 +19,19 @@ export function setupMatchForm() {
         const tB1 = teamB1Select.value.trim();
         const tB2 = teamB2Select.value.trim();
 
-        const goalsA = teamAgoalsInput.value.trim();
-        const goalsB = teamBgoalsInput.value.trim();
-
-        // Validate inputs
-        if (!/^\d+$/.test(goalsA) || !/^\d+$/.test(goalsB)) {
-            return alert("Goals must be valid numbers.");
+        let parsedGoalsA, parsedGoalsB;
+        if (liveMode) {
+            parsedGoalsA = goalLog.filter(g => g.team === 'red').length;
+            parsedGoalsB = goalLog.filter(g => g.team === 'blue').length;
+        } else {
+            const goalsA = teamAgoalsInput.value.trim();
+            const goalsB = teamBgoalsInput.value.trim();
+            if (!/^[0-9]+$/.test(goalsA) || !/^[0-9]+$/.test(goalsB)) {
+                return alert("Goals must be valid numbers.");
+            }
+            parsedGoalsA = parseInt(goalsA, 10);
+            parsedGoalsB = parseInt(goalsB, 10);
         }
-        const parsedGoalsA = parseInt(goalsA, 10);
-        const parsedGoalsB = parseInt(goalsB, 10);
         if (parsedGoalsA === parsedGoalsB) {
             return alert("Cannot submit a tie.");
         }
@@ -86,9 +91,12 @@ export function setupMatchForm() {
                 goalsB: parsedGoalsB,
                 eloDelta: Math.abs(delta),
                 timestamp: serverTimestamp(),
+                ...(liveMode && goalLog.length > 0 ? { goalLog: goalLog.slice(), matchDuration: Date.now() - matchStartTime } : {})
             });
             alert("Match submitted!");
             resetMatchForm();
+            setLiveMode(false); // Reset to final score mode after submit
+            stopLiveMatchTimer(); // Stop timer after submit
         } catch (error) {
             console.error("Error submitting match:", error);
             alert("Failed to submit match. Check the console for more details.");
@@ -105,6 +113,7 @@ export function resetMatchForm() {
     teamB2Select.value = "";
     teamAgoalsInput.value = "0";
     teamBgoalsInput.value = "0";
+    stopLiveMatchTimer(); // Also stop timer on reset
 }
 
 const swapRedTeamHitbox = document.getElementById("swap_red_team_hitbox")
@@ -126,6 +135,160 @@ swapBlueTeamHitbox.addEventListener("click", () => {
   // Swap values
   [tB1.value, tB2.value] = [tB2.value, tB1.value];
 })
+
+
+// Swap teams button
+document.getElementById('swapTeams').addEventListener('click', () => {
+    const tempA1 = teamA1Select.value;
+    const tempA2 = teamA2Select.value;
+    const tempB1 = teamB1Select.value;
+    const tempB2 = teamB2Select.value;
+
+    teamA1Select.value = tempB1;
+    teamA2Select.value = tempB2;
+    teamB1Select.value = tempA1;
+    teamB2Select.value = tempA2;
+});
+
+// Make it so goals dropdowns are set to MAX_GOALS when one is changed
+document.getElementById("teamAgoals").addEventListener("change", function (e) {
+  if (this.value === String(MAX_GOALS)) {
+    return;
+  }
+  const other_goal_dropdown = document.getElementById("teamBgoals");
+  other_goal_dropdown.value = String(MAX_GOALS);
+});
+
+document.getElementById("teamBgoals").addEventListener("change", function (e) {
+  if (this.value === String(MAX_GOALS)) {
+    return;
+  }
+  const other_goal_dropdown = document.getElementById("teamAgoals");
+  other_goal_dropdown.value = String(MAX_GOALS);
+});
+
+// --- Live Match Mode State ---
+let liveMode = false;
+let goalLog = [];
+let matchStartTime = null;
+let liveTimerInterval = null; // Timer interval for live match
+
+function setLiveMode(enabled) {
+    if (enabled === liveMode) return;
+    if (enabled && goalLog.length > 0) {
+        if (!confirm('Switching to Live Match Mode will clear the current goal log. Continue?')) return;
+        goalLog = [];
+    }
+    if (!enabled && goalLog.length > 0) {
+        if (!confirm('Switching to Final Score Mode will discard the live goal log. Continue?')) return;
+        goalLog = [];
+    }
+    liveMode = enabled;
+    liveMatchPanel.style.display = enabled ? 'flex' : 'none';
+    toggleLiveMode.classList.toggle('active', enabled);
+    toggleLiveMode.textContent = enabled ? 'Live Match Mode' : 'Final Score Mode';
+    liveModeStatus.textContent = enabled ? 'Log each goal as it happens.' : 'Enter only the final score.';
+    // Disable/enable manual score selectors
+    teamAgoalsInput.disabled = enabled;
+    teamBgoalsInput.disabled = enabled;
+    if (enabled) {
+        matchStartTime = Date.now();
+        goalLog = [];
+        renderGoalTimeline();
+        teamAgoalsInput.value = '0';
+        teamBgoalsInput.value = '0';
+        // Start live timer
+        startLiveMatchTimer();
+    } else {
+        matchStartTime = null;
+        goalLog = [];
+        renderGoalTimeline();
+        stopLiveMatchTimer();
+    }
+}
+
+function startLiveMatchTimer() {
+    const timerElem = document.getElementById('liveMatchTimer');
+    if (!timerElem) return;
+    timerElem.style.display = 'inline-block';
+    function updateTimer() {
+        if (!liveMode || !matchStartTime) return;
+        const elapsed = Date.now() - matchStartTime;
+        timerElem.textContent = formatMsToMMSS(elapsed);
+    }
+    updateTimer();
+    liveTimerInterval = setInterval(updateTimer, 1000);
+}
+
+function stopLiveMatchTimer() {
+    const timerElem = document.getElementById('liveMatchTimer');
+    if (liveTimerInterval) {
+        clearInterval(liveTimerInterval);
+        liveTimerInterval = null;
+    }
+    if (timerElem) {
+        timerElem.textContent = '00:00';
+        timerElem.style.display = 'none';
+    }
+}
+
+toggleLiveMode.addEventListener('click', () => setLiveMode(!liveMode));
+
+function formatMsToMMSS(ms) {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function renderGoalTimeline() {
+    goalTimeline.innerHTML = '';
+    let redGoals = 0, blueGoals = 0;
+    goalLog.forEach((goal, idx) => {
+        if (goal.team === 'red') redGoals++;
+        else blueGoals++;
+        const div = document.createElement('span');
+        div.className = 'goal-log-item ' + goal.team;
+        const timeStr = formatMsToMMSS(goal.timestamp);
+        div.textContent = `${goal.team === 'red' ? 'Red' : 'Blue'} #${goal.team === 'red' ? redGoals : blueGoals} (${timeStr})`;
+        // Add remove button
+        const btn = document.createElement('button');
+        btn.className = 'goal-log-remove';
+        btn.type = 'button';
+        btn.title = 'Remove this goal';
+        btn.innerHTML = '&times;';
+        btn.onclick = () => {
+            if (confirm('Remove this goal from the log?')) {
+                goalLog.splice(idx, 1);
+                renderGoalTimeline();
+                syncScoreSelectors();
+            }
+        };
+        div.appendChild(btn);
+        goalTimeline.appendChild(div);
+    });
+    syncScoreSelectors();
+}
+
+function syncScoreSelectors() {
+    // Only update if in live mode
+    if (!liveMode) return;
+    let redGoals = goalLog.filter(g => g.team === 'red').length;
+    let blueGoals = goalLog.filter(g => g.team === 'blue').length;
+    teamAgoalsInput.value = redGoals;
+    teamBgoalsInput.value = blueGoals;
+}
+
+btnRedScored.addEventListener('click', () => {
+    if (!liveMode) return;
+    goalLog.push({ team: 'red', timestamp: Date.now() - matchStartTime });
+    renderGoalTimeline();
+});
+btnBlueScored.addEventListener('click', () => {
+    if (!liveMode) return;
+    goalLog.push({ team: 'blue', timestamp: Date.now() - matchStartTime });
+    renderGoalTimeline();
+});
 
 
 // Swap teams button
