@@ -6,9 +6,11 @@ import {
     getWinLossRatiosWithTeammates,
     getEloGainsAndLosses,
     getLongestStreaks,
-    getStreakyness // Import the new function
+    getStreakyness,
+    getGoalStats,
 } from './player-stats-service.js';
 import { allMatches } from './match-data-service.js';
+import { MAX_GOALS } from './constants.js';
 import Chart from "chart.js/auto";
 
 // Define the HTML template for the component using a template literal
@@ -151,11 +153,6 @@ template.innerHTML = `
             gap: 4px;
         }
 
-        /* Styles for streakyness score color */
-        /*.streaky { color: #86e086; } !* Green for streaky *!*/
-        /*.consistent { color: #ff7b7b; } !* Red for consistent *!*/
-
-        /* UPDATED: Styles for info icon and tooltip */
         .info-icon {
             display: inline-block;
             width: 16px;
@@ -349,6 +346,20 @@ template.innerHTML = `
                 <div id="teammateWinLossTableContainer" class="stats-section">
                     <h3>Win/Loss with Teammates</h3>
                 </div>
+
+                <!-- Goal Stats Section -->
+                <div id="goalStatsSection" class="stats-section">
+                    <h3>Goal Stats</h3>
+                    <div id="goalStatsContent">
+                        <!-- All-time goals and histogram will be rendered here -->
+                        <div class="chart-container">
+                            <canvas id="goalHistogramChart"></canvas>
+                        </div>
+                        <div style="font-size:1.2em; color: var(--text-color-primary); margin-top: 10px;">
+                            All-time goals: <span id="allTimeGoals">-:-</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -393,14 +404,16 @@ class PlayerStatsComponent extends HTMLElement {
                 teammateRatios,
                 eloGainsLosses,
                 longestStreaks,
-                streakyness
+                streakyness,
+                goalStats
             ] = [
                 getEloTrajectory(this.playerName),
                 getWinLossRatios(this.playerName),
                 getWinLossRatiosWithTeammates(this.playerName),
                 getEloGainsAndLosses(this.playerName),
                 getLongestStreaks(this.playerName),
-                getStreakyness(this.playerName)
+                getStreakyness(this.playerName),
+                getGoalStats(this.playerName)
             ];
 
             this.renderEloGraph(eloTrajectory);
@@ -409,6 +422,7 @@ class PlayerStatsComponent extends HTMLElement {
             this.renderEloFlowCharts(eloGainsLosses);
             this.renderWinLossTable(winLossRatios);
             this.renderTeammateWinLossTable(teammateRatios);
+            this.renderGoalStats(goalStats);
 
             loadingEl.style.display = 'none';
             statsContentEl.style.display = 'block';
@@ -422,7 +436,45 @@ class PlayerStatsComponent extends HTMLElement {
     renderEloGraph(trajectoryData) {
         const canvas = this.shadowRoot.getElementById('eloChart');
         if (!canvas) return;
-        const chart = new Chart(canvas.getContext('2d'), { type: 'line', data: { labels: trajectoryData.map(p => new Date(p.timestamp).toLocaleDateString()), datasets: [{ label: 'ELO', data: trajectoryData.map(p => p.elo), borderColor: '#6cabc2', backgroundColor: '#6cabc2', pointRadius: 0, borderWidth: 3, tension: 0, pointHitRadius: 20, }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { ticks: { color: '#ccc' }, grid: { color: 'rgba(170, 170, 170, 0.2)' } }, x: { ticks: { color: '#ccc' }, grid: { color: 'rgba(170, 170, 170, 0.2)' } } }, plugins: { legend: { display: false } }, } }); this.chartInstances.push(chart);
+        const chart = new Chart(
+        canvas.getContext('2d'),
+        {
+                type: 'line',
+                data: {
+                    labels: trajectoryData.map(p => new Date(p.timestamp).toLocaleDateString()),
+                    datasets: [
+                        {
+                            label: 'ELO',
+                            data: trajectoryData.map(p => p.elo),
+                            borderColor: '#6cabc2',
+                            backgroundColor: '#6cabc2',
+                            pointRadius: 0,
+                            borderWidth: 3,
+                            tension: 0,
+                            pointHitRadius: 20,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            ticks: { color: '#ccc' },
+                            grid: { color: 'rgba(170, 170, 170, 0.2)' }
+                        },
+                        x: {
+                            ticks: { color: '#ccc' },
+                            grid: { color: 'rgba(170, 170, 170, 0.2)' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            }
+        );
+        this.chartInstances.push(chart);
     }
 
     renderWinLossTable(ratios) {
@@ -586,6 +638,80 @@ class PlayerStatsComponent extends HTMLElement {
         });
     }
 
+    renderGoalStats(goalStats) {
+        // Defensive: support both camelCase and snakeCase for compatibility
+        const resultHistogram = goalStats.resultHistogram ?? goalStats.histogram ?? {};
+        const goalsFor = goalStats.goalsFor ?? 0;
+        const goalsAgainst = goalStats.goalsAgainst ?? 0;
+        const allTimeGoalsEl = this.shadowRoot.getElementById('allTimeGoals');
+        if (allTimeGoalsEl) {
+            allTimeGoalsEl.textContent = `${goalsFor}:${goalsAgainst}`;
+        }
+        const canvas = this.shadowRoot.getElementById('goalHistogramChart');
+        if (!canvas) return;
+        // Only show results where one team has MAX_GOALS and the other has 0..(MAX_GOALS-1)
+        const lossLabels = [];
+        const winLabels = [];
+        for (let i = 0; i < MAX_GOALS; i++) {
+            lossLabels.push(`${i}:${MAX_GOALS}`); // Player's team lost
+            winLabels.unshift(`${MAX_GOALS}:${i}`); // Player's team won (unshift for descending order)
+        }
+        const labels = [...lossLabels, ...winLabels];
+        const data = labels.map(label => resultHistogram[label] || 0);
+        // Destroy any existing chart instance for this canvas
+        const existingChart = this.chartInstances.find(chart => chart.canvas === canvas);
+        if (existingChart) {
+            existingChart.destroy();
+            this.chartInstances = this.chartInstances.filter(chart => chart !== existingChart);
+        }
+        // Create the bar chart
+        const ctx = canvas.getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Match Results',
+                    data: data,
+                    backgroundColor: '#6cabc2',
+                    borderColor: '#4c8f99',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Result',
+                            color: '#ccc',
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        ticks: { color: '#ccc', font: { size: 12 } },
+                        grid: { color: 'rgba(170, 170, 170, 0.2)' },
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Count',
+                            color: '#ccc',
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        beginAtZero: true,
+                        ticks: { color: '#ccc', stepSize: 1 },
+                        grid: { color: 'rgba(170, 170, 170, 0.2)' }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+        this.chartInstances.push(chart);
+    }
+
     close() {
         this.hideTooltip();
         this.parentNode.classList.remove('visible');
@@ -599,7 +725,6 @@ class PlayerStatsComponent extends HTMLElement {
     }
 }
 
-customElements.define('player-stats-component', PlayerStatsComponent);
 
 export function showPlayerStats(playerName) {
     const backdrop = document.getElementById('playerStatsBackdrop');
@@ -621,3 +746,5 @@ window.addEventListener('popstate', (event) => {
         component.close();
     }
 });
+
+customElements.define('player-stats-component', PlayerStatsComponent);

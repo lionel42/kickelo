@@ -280,3 +280,38 @@ export function getStreakyness(playerName) {
         totalLosses: losses
     };
 }
+
+/**
+ * Gets the all-time goal score and a histogram of match results for a player.
+ * @param {string} playerName - The name of the player.
+ * @returns {{ totalGoals: number, resultHistogram: Object<string, number> }}
+ */
+export function getGoalStats(playerName) {
+    if (!isMatchesDataReady) return { goalsFor: 0, goalsAgainst: 0, resultHistogram: {} };
+    let goalsFor = 0;
+    let goalsAgainst = 0;
+    const resultHistogram = {};
+
+    const relevantMatches = allMatches.filter(match =>
+        match.teamA.includes(playerName) || match.teamB.includes(playerName)
+    );
+
+    for (const match of relevantMatches) {
+        let teamGoals, oppGoals;
+        if (match.goalsA !== undefined && match.goalsB !== undefined) {
+            // match has goals recorded
+            if (match.teamA.includes(playerName)) {
+                teamGoals = match.goalsA;
+                oppGoals = match.goalsB;
+            } else {
+                teamGoals = match.goalsB;
+                oppGoals = match.goalsA;
+            }
+            goalsFor += teamGoals;
+            goalsAgainst += oppGoals;
+            const key = `${teamGoals}:${oppGoals}`;
+            resultHistogram[key] = (resultHistogram[key] || 0) + 1;
+        }
+    }
+    return { goalsFor, goalsAgainst, resultHistogram };
+}
