@@ -8,11 +8,11 @@ import { initializeRecentMatchesDisplay } from './recent-matches-display.js';
 import { suggestPairing } from './pairing-service.js';
 import { setupMatchForm } from './match-form-handler.js';
 import { showPlayerStats } from './player-stats-component.js';
-import { initializeMatchesData } from './match-data-service.js';
+import { initializeMatchesData, resetMatchDataListener } from './match-data-service.js';
 
 import { auth } from './firebase-service.js';
 import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
-import {initializePlayersData} from "./player-data-service.js";
+import {initializePlayersData, resetPlayerDataListener} from "./player-data-service.js";
 
 // --- App State ---
 // This will hold the unsubscribe functions for our listeners
@@ -52,6 +52,10 @@ function goOffline() {
 
     // Clear the array for the next session
     activeListeners = [];
+
+    // Reset data listeners so they can be re-initialized
+    resetMatchDataListener();
+    resetPlayerDataListener();
 }
 
 // --- Main Application Logic ---

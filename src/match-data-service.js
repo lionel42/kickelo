@@ -1,4 +1,4 @@
-import { db, collection, doc, getDoc, onSnapshot } from './firebase-service.js';
+import { db, collection, onSnapshot } from './firebase-service.js';
 
 // This array will hold all match data, kept in sync by the listener.
 let allMatches = [];
@@ -30,6 +30,13 @@ export function initializeMatchesData() {
             matchesData.push({ id: doc.id, ...doc.data() });
         });
 
+        // convert Firestore timestamps to milliseconds
+        matchesData.forEach(match => {
+            if (match.timestamp && typeof match.timestamp.toMillis === 'function') {
+                match.timestamp = match.timestamp.toMillis();
+            }
+        });
+
         // Sort all matches by timestamp, newest first.
         // It's more efficient to do this once here, rather than in every function.
         matchesData.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
@@ -44,6 +51,13 @@ export function initializeMatchesData() {
     }, (error) => {
         console.error("Error listening to matches collection:", error);
     });
+}
+
+/**
+ * Resets the match data listener so it can be re-initialized after going offline.
+ */
+export function resetMatchDataListener() {
+    dataInitialized = false;
 }
 
 export { allMatches, isDataReady };

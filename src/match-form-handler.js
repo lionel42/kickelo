@@ -8,8 +8,7 @@ import {
     teamA1Select, teamA2Select, teamB1Select, teamB2Select,
     teamAgoalsInput, teamBgoalsInput, submitMatchBtn, matchForm
 } from './dom-elements.js';
-
-const MAX_GOALS = 5; // Assuming this constant is specific to the form validation
+import { MAX_GOALS } from './constants.js';
 
 export function setupMatchForm() {
     submitMatchBtn.addEventListener("click", async (e) => {

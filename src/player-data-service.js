@@ -39,3 +39,10 @@ export function initializePlayersData() {
         console.error("Error listening to players collection:", error);
     });
 }
+
+/**
+ * Resets the player data listener so it can be re-initialized after going offline.
+ */
+export function resetPlayerDataListener() {
+    dataInitialized = false;
+}
