@@ -331,36 +331,6 @@ btnBlueScored.addEventListener('click', () => {
 });
 
 
-// Swap teams button
-document.getElementById('swapTeams').addEventListener('click', () => {
-    const tempA1 = teamA1Select.value;
-    const tempA2 = teamA2Select.value;
-    const tempB1 = teamB1Select.value;
-    const tempB2 = teamB2Select.value;
-
-    teamA1Select.value = tempB1;
-    teamA2Select.value = tempB2;
-    teamB1Select.value = tempA1;
-    teamB2Select.value = tempA2;
-});
-
-// Make it so goals dropdowns are set to MAX_GOALS when one is changed
-document.getElementById("teamAgoals").addEventListener("change", function (e) {
-  if (this.value === String(MAX_GOALS)) {
-    return;
-  }
-  const other_goal_dropdown = document.getElementById("teamBgoals");
-  other_goal_dropdown.value = String(MAX_GOALS);
-});
-
-document.getElementById("teamBgoals").addEventListener("change", function (e) {
-  if (this.value === String(MAX_GOALS)) {
-    return;
-  }
-  const other_goal_dropdown = document.getElementById("teamAgoals");
-  other_goal_dropdown.value = String(MAX_GOALS);
-});
-
 // Initialize drag functionality for foosball rods (remains in app.js for now, or move to a separate `foosball-table-interactions.js`)
 function makeRodDraggable(rod, options = {}) {
   let isDragging = false;
