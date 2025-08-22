@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase/app';
+import { getAnalytics } from "firebase/analytics";
 import {
     initializeFirestore,
     persistentLocalCache,
@@ -27,10 +28,13 @@ const firebaseConfig = {
   projectId: "kickelo",
   storageBucket: "kickelo.firebasestorage.app",
   messagingSenderId: "1075750769009",
-  appId: "1:1075750769009:web:8a8b02540be5c9522be6d0"
+  appId: "1:1075750769009:web:8a8b02540be5c9522be6d0",
+  measurementId: "G-8V6P1V4Z4G"
 };
 
 const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+
 // Use multi-tab IndexedDb persistence.
 initializeFirestore(app,
   {localCache:
