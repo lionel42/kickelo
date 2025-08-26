@@ -6,8 +6,9 @@ import { expectedScore, updateRating } from './elo-service.js';
 import { getOrCreatePlayer } from './player-manager.js';
 import {
     teamA1Select, teamA2Select, teamB1Select, teamB2Select,
-    teamAgoalsInput, teamBgoalsInput, submitMatchBtn, matchForm,
-    toggleLiveMode, liveMatchPanel, btnBlueScored, btnRedScored, goalTimeline, liveModeStatus
+    teamAgoalsInput, teamBgoalsInput, submitMatchBtn,
+    toggleLiveMode, liveMatchPanel, btnBlueScored, btnRedScored, goalTimeline, liveModeStatus,
+    vibrationSeismograph
 } from './dom-elements.js';
 import { MAX_GOALS } from './constants.js';
 
@@ -95,7 +96,8 @@ export function setupMatchForm() {
                 goalsB: parsedGoalsB,
                 eloDelta: Math.abs(delta),
                 timestamp: serverTimestamp(),
-                ...(liveMode && goalLog.length > 0 ? { goalLog: goalLog.slice(), matchDuration: Date.now() - matchStartTime } : {})
+                ...(liveMode && goalLog.length > 0 ? { goalLog: goalLog.slice(), matchDuration: Date.now() - matchStartTime } : {}),
+                ...(vibrationTrackingEnabled && vibrationLog.length > 0 ? { vibrationLog: vibrationLog.slice() } : {})
             });
             alert("Match submitted!");
             resetMatchForm();
@@ -155,7 +157,7 @@ document.getElementById('swapTeams').addEventListener('click', () => {
 });
 
 // Make it so goals dropdowns are set to MAX_GOALS when one is changed
-document.getElementById("teamAgoals").addEventListener("change", function (e) {
+document.getElementById("teamAgoals").addEventListener("change", function () {
   if (this.value === String(MAX_GOALS)) {
     return;
   }
@@ -163,7 +165,7 @@ document.getElementById("teamAgoals").addEventListener("change", function (e) {
   other_goal_dropdown.value = String(MAX_GOALS);
 });
 
-document.getElementById("teamBgoals").addEventListener("change", function (e) {
+document.getElementById("teamBgoals").addEventListener("change", function () {
   if (this.value === String(MAX_GOALS)) {
     return;
   }
@@ -171,13 +173,99 @@ document.getElementById("teamBgoals").addEventListener("change", function (e) {
   other_goal_dropdown.value = String(MAX_GOALS);
 });
 
-// --- Live Match Mode State ---
+// --- Experimental Vibration Tracking ---
+let vibrationTrackingEnabled = false;
+let vibrationLog = [];
+let vibrationListener = null;
+let vibrationDrawInterval = null;
+
+function promptVibrationTracking() {
+    return new Promise((resolve) => {
+        const consent = window.confirm(
+            'Enable vibration tracking for this match? (Experimental)\n\nThis will record accelerometer data while live mode is active.'
+        );
+        resolve(consent);
+    });
+}
+
+function startVibrationTracking() {
+    console.log("Starting vibration tracking...");
+    vibrationTrackingEnabled = true;
+    vibrationLog = [];
+    if (!window.DeviceMotionEvent) {
+        console.error('DeviceMotion API not supported on this device/browser.');
+        alert('DeviceMotion API not supported on this device/browser.');
+        vibrationTrackingEnabled = false;
+        return;
+    }
+    vibrationSeismograph.style.display = '';
+    // Listen for device motion events
+    vibrationListener = function(event) {
+        console.log(event);
+        const { x, y, z } = event.accelerationIncludingGravity || event.acceleration || {};
+        if (x == null || y == null || z == null) {
+            console.warn('Incomplete accelerometer data received.');
+            return;
+        }
+        vibrationLog.push({
+            t: Date.now(),
+            x, y, z
+        });
+    };
+    window.addEventListener('devicemotion', vibrationListener);
+    // Start drawing the seismograph
+    vibrationDrawInterval = setInterval(drawVibrationSeismograph, 50);
+}
+
+function stopVibrationTracking() {
+    console.log("Stopping vibration tracking...");
+    if (vibrationListener) {
+        window.removeEventListener('devicemotion', vibrationListener);
+        vibrationListener = null;
+    }
+    if (vibrationDrawInterval) {
+        clearInterval(vibrationDrawInterval);
+        vibrationDrawInterval = null;
+    }
+    vibrationSeismograph.style.display = 'none';
+    vibrationTrackingEnabled = false;
+}
+
+function drawVibrationSeismograph() {
+    const ctx = vibrationSeismograph.getContext('2d');
+    const width = vibrationSeismograph.width;
+    const height = vibrationSeismograph.height;
+    ctx.clearRect(0, 0, width, height);
+    // Show last 10 seconds
+    const now = Date.now();
+    const windowMs = 10000;
+    const minT = now - windowMs;
+    const samples = vibrationLog.filter(d => d.t >= minT);
+    if (samples.length < 2) return;
+    // Compute magnitude
+    const mags = samples.map(d => Math.sqrt(d.x*d.x + d.y*d.y + d.z*d.z));
+    // Normalize
+    const maxMag = Math.max(12, ...mags);
+    ctx.strokeStyle = '#6cabc2';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < samples.length; ++i) {
+        const x = (samples[i].t - minT) / windowMs * width;
+        const y = height - (mags[i] / maxMag) * height;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+}
+
+// --- Live Mode Integration ---
 let liveMode = false;
 let goalLog = [];
-let matchStartTime = null;
+let matchStartTime = 0;
 let liveTimerInterval = null; // Timer interval for live match
 
-function setLiveMode(enabled) {
+// Refactored setLiveMode to handle vibration tracking natively
+async function setLiveMode(enabled) {
     if (enabled === liveMode) return;
     if (enabled && goalLog.length > 0) {
         if (!confirm('Switching to Live Match Mode will clear the current goal log. Continue?')) return;
@@ -186,6 +274,17 @@ function setLiveMode(enabled) {
     if (!enabled && goalLog.length > 0) {
         if (!confirm('Switching to Final Score Mode will discard the live goal log. Continue?')) return;
         goalLog = [];
+    }
+    if (enabled) {
+        // Prompt for vibration tracking
+        const consent = await promptVibrationTracking();
+        if (consent) {
+            startVibrationTracking();
+        } else {
+            stopVibrationTracking();
+        }
+    } else {
+        stopVibrationTracking();
     }
     liveMode = enabled;
     liveMatchPanel.style.display = enabled ? 'flex' : 'none';
@@ -219,6 +318,9 @@ function setLiveMode(enabled) {
         if (timerElem) timerElem.style.display = 'none';
     }
 }
+
+toggleLiveMode.addEventListener('click', () => setLiveMode(!liveMode));
+
 
 function syncScoreSelectors() {
     // Always update selectors in live mode
@@ -261,7 +363,6 @@ function stopLiveMatchTimer() {
     }
 }
 
-toggleLiveMode.addEventListener('click', () => setLiveMode(!liveMode));
 
 function formatMsToMMSS(ms) {
     const totalSeconds = Math.floor(ms / 1000);

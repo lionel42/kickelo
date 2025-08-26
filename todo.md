@@ -1,0 +1,17 @@
+- [x] top down kicker match UI (see UISketch.svg)
+- [ ] Tournament Mode (difficult)
+- [ ] Better rating algorithm, maybe TrueSkill
+- [x] Player Profiles, including win/loss records, synergies with team-mates in table format
+- [ ] Team ELOs
+- [ ] Achievements/Badges
+  - [ ] Win X games
+  - [ ] Win X games in a row (8="legendary")
+  - [ ] Come back from behind to win from X goals down (4 goals="unsterblich")
+  - [ ] Win X golden goals
+  - [ ] Win without conceding a goal (1 time, 5 times, 20 times)
+  - [ ] Win in under X minutes (3, 2, 1)
+  - [ ] Win a long game (over 10 minutes, over 15 minutes)
+  - [ ] Win against a team with higher average rating (by X ELO points: 0, 100, 300)
+  - [ ] Win X games in a single day
+  - [ ] Get to the podium / top of the leaderboard
+  - [ ] Play games with X different team-mates
