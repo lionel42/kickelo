@@ -51,7 +51,7 @@ The app is currently functional, with real-time updates via Firestore, a modern 
 
 ## Data Model
 - **Players**: `{ id, name, elo, games }`
-- **Matches**: `{ id, teamA, teamB, winner, goalsA, goalsB, eloDelta, timestamp, goalLog?, matchDuration? }`
+- **Matches**: `{ id, teamA, teamB, winner, goalsA, goalsB, eloDelta, timestamp, goalLog?, matchDuration?, vibrationLogPath? }`
 
 ## UI Features
 - SVG foosball table with overlayed player selectors

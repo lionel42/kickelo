@@ -762,3 +762,41 @@ th[role=columnheader]:not(.no-sort):hover:after {
   display: inline-block;
   /*animation: flyIn 2s ease-out forwards;*/
 }
+
+/* Upload Indicator Styles */
+.upload-indicator-backdrop {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(20, 20, 20, 0.85); /* darker than other modals */
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+}
+.upload-indicator-backdrop.visible {
+  display: flex;
+}
+.upload-indicator-modal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #232323;
+  padding: 2em 2.5em;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.7);
+}
+.upload-indicator-spinner {
+  margin-bottom: 1em;
+  width: 48px;
+  height: 48px;
+  animation: spin 1s linear infinite;
+  filter: drop-shadow(0 0 6px #111);
+}
+@keyframes spin {
+  100% { transform: rotate(360deg); }
+}
+.upload-indicator-modal div {
+  color: #e0e0e0;
+  font-size: 1.1em;
+  margin-top: 0.5em;
+}

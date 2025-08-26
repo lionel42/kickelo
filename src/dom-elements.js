@@ -25,6 +25,7 @@ const btnRedScored = document.getElementById("btnRedScored");
 const goalTimeline = document.getElementById("goalTimeline");
 const liveModeStatus = document.getElementById("liveModeStatus");
 const vibrationSeismograph = document.getElementById('vibrationSeismograph');
+const uploadIndicator = document.getElementById('uploadIndicator');
 
 
 export {
@@ -50,7 +51,8 @@ export {
     btnRedScored,
     goalTimeline,
     liveModeStatus,
-    vibrationSeismograph
+    vibrationSeismograph,
+    uploadIndicator
 };
 
 // export const playerStatsBackdrop = document.getElementById('playerStatsBackdrop');

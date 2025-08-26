@@ -19,17 +19,19 @@ Implement experimental vibration tracking during live mode in the foosball track
    - Show the magnitude (sqrt(x^2 + y^2 + z^2)) as the main signal.
 
 4. **Data Storage**
-   - On match end, save the vibration log as part of the match document in Firestore (if size allows) or as a file in Firebase Storage (future step).
+   - On match end, save the vibration log as a JSON file in Firebase Storage at `vibrationLogs/{matchId}.json`.
+   - The match document in Firestore will include a `vibrationLogPath` field (e.g., `vibrationLogs/{matchId}.json`).
+   - The vibration log is no longer stored directly in Firestore, and there is no `hasVibrationLog` flag.
 
 5. **Extensibility**
-   - The code should be modular to allow for future subsampling, event detection, or storage changes.
+   - The code is modular to allow for future subsampling, event detection, or storage changes.
 
 ## Notes
 - No subsampling for now; record all data.
 - Visualization is for user feedback and debugging.
 - Privacy: Only record if user consents at the start of live mode.
+- When deleting a match, also delete the corresponding vibration log from Storage if it exists.
 
 ---
 
 This plan will be updated as the feature evolves.
-

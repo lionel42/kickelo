@@ -20,6 +20,7 @@ import {
     onSnapshot,
 } from 'firebase/firestore';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { getStorage, ref as storageRef, connectStorageEmulator } from 'firebase/storage';
 
 
 const firebaseConfig = {
@@ -44,14 +45,17 @@ initializeFirestore(app,
 
 const db = getFirestore(app);
 
-export const auth = getAuth(app);
+const auth = getAuth(app);
+const storage = getStorage(app);
 
 if (import.meta.env.DEV) {
-  // Firestore emulator
-  connectFirestoreEmulator(db, '127.0.0.1', 7070);
-  // Auth emulator (currently not used)
-  const auth = getAuth(app);
-  connectAuthEmulator(auth, 'http://127.0.0.1:9099');
+    // Firestore emulator
+    connectFirestoreEmulator(db, '127.0.0.1', 7070);
+    // Auth emulator
+    const auth = getAuth(app);
+    connectAuthEmulator(auth, 'http://127.0.0.1:9099');
+    // Storage emulator
+    connectStorageEmulator(storage, '127.0.0.1', 9199);
 }
 
 // Export db and all necessary Firestore functions
@@ -68,5 +72,8 @@ export {
     where,
     orderBy,
     limit,
-    onSnapshot
+    onSnapshot,
+    auth,
+    storage,
+    storageRef
 };

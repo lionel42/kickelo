@@ -59,8 +59,20 @@ service cloud.firestore {
                     && request.resource.data.eloDelta is number
                     && request.resource.data.timestamp == request.time; // Enforce server timestamp
 
-      // Matches cannot be updated or deleted from the client.
-      allow update, delete: if false;
+      // Allow only vibrationLogPath and hasVibrationLog to be changed
+
+      allow update: if isSignedIn()
+        && (
+          // All fields except vibrationLogPath and hasVibrationLog must be unchanged
+          request.resource.data.diff(resource.data).changedKeys().hasOnly(['vibrationLogPath', 'hasVibrationLog'])
+          // If present, vibrationLogPath must be a string
+          && (!('vibrationLogPath' in request.resource.data) || request.resource.data.vibrationLogPath is string)
+          // If present, hasVibrationLog must be a bool
+          && (!('hasVibrationLog' in request.resource.data) || request.resource.data.hasVibrationLog is bool)
+        );
+
+      // Matches cannot be deleted from the client.
+      allow delete: if false;
     }
 
     // --- Rules for the 'meta' collection (for session data) ---
