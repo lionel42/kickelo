@@ -277,7 +277,8 @@ async function setLiveMode(enabled) {
     }
     if (enabled) {
         // Prompt for vibration tracking
-        const consent = await promptVibrationTracking();
+        // const consent = await promptVibrationTracking();
+        const consent = false; // Disable vibration tracking for now
         if (consent) {
             startVibrationTracking();
         } else {
