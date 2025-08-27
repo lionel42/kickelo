@@ -43,34 +43,66 @@ export function setupMatchForm() {
         if (!(parsedGoalsA === MAX_GOALS && parsedGoalsB < MAX_GOALS) && !(parsedGoalsB === MAX_GOALS && parsedGoalsA < MAX_GOALS)) {
             return alert(`One team must have exactly ${MAX_GOALS} goals, the other less.`);
         }
-        if (!tA1 || !tA2 || !tB1 || !tB2) return alert("Enter all player names");
-        if (new Set([tA1, tA2, tB1, tB2]).size < 4) {
-            return alert("All players must be different");
+
+        // --- Build teams, allow 1v1 or 2v2 ---
+        // For each team, if both positions are the same or one is blank, use only one player
+        let teamA = [];
+        if (tA1 && tA2) {
+            if (tA1 === tA2) teamA = [tA1];
+            else teamA = [tA1, tA2];
+        } else if (tA1) {
+            teamA = [tA1];
+        } else if (tA2) {
+            teamA = [tA2];
         }
+        let teamB = [];
+        if (tB1 && tB2) {
+            if (tB1 === tB2) teamB = [tB1];
+            else teamB = [tB1, tB2];
+        } else if (tB1) {
+            teamB = [tB1];
+        } else if (tB2) {
+            teamB = [tB2];
+        }
+
+        // Validation: at least one player per team
+        if (teamA.length === 0 || teamB.length === 0) {
+            return alert("Each team must have at least one player.");
+        }
+        // Validation: no player can be on both teams
+        const allPlayers = [...teamA, ...teamB];
+        const uniquePlayers = new Set(allPlayers);
+        if (uniquePlayers.size < allPlayers.length) {
+            return alert("A player cannot play on both teams.");
+        }
+        // Validation: Ensure equal team sizes
+        if (teamA.length !== teamB.length) {
+            return alert("Both teams must have the same number of players (1v1 or 2v2).");
+        }
+
 
         const winner = parsedGoalsA > parsedGoalsB ? "A" : "B";
 
-        // Get player documents
-        const [pA1, pA2, pB1, pB2] = await Promise.all([
-            getOrCreatePlayer(tA1),
-            getOrCreatePlayer(tA2),
-            getOrCreatePlayer(tB1),
-            getOrCreatePlayer(tB2),
-        ]);
+        // Get player documents (getOrCreatePlayer for each unique player)
+        const playerNames = Array.from(uniquePlayers);
+        const playerDocs = await Promise.all(playerNames.map(getOrCreatePlayer));
+        const playerMap = {};
+        playerDocs.forEach(p => { playerMap[p.name] = p; });
 
-        const teamARating = (pA1.elo + pA2.elo) / 2;
-        const teamBRating = (pB1.elo + pB2.elo) / 2; // Corrected pB1.elo to pB2.elo
-
+        // Calculate team ratings (average of team members)
+        const teamARating = teamA.reduce((sum, name) => sum + playerMap[name].elo, 0) / teamA.length;
+        const teamBRating = teamB.reduce((sum, name) => sum + playerMap[name].elo, 0) / teamB.length;
         const expectedA = expectedScore(teamARating, teamBRating);
         const scoreA = winner === "A" ? 1 : 0;
-        const delta = updateRating(0, expectedA, scoreA); // updateRating calculates the change based on score - expected
+        const delta = updateRating(0, expectedA, scoreA);
 
-        const winnerName = winner === "A" ? `${pA1.name} & ${pA2.name}` : `${pB1.name} & ${pB2.name}`;
-        const loserName = winner === "A" ? `${pB1.name} & ${pB2.name}` : `${pA1.name} & ${pA2.name}`;
+        // Confirmation message
+        const winnerNames = winner === "A" ? teamA.join(" & ") : teamB.join(" & ");
+        const loserNames = winner === "A" ? teamB.join(" & ") : teamA.join(" & ");
         const eloChange = Math.abs(delta);
         const winnerGoals = winner === "A" ? parsedGoalsA : parsedGoalsB;
         const loserGoals = winner === "A" ? parsedGoalsB : parsedGoalsA;
-        const message = `Confirm match submission:\n\nWinners: ${winnerName}\nLosers: ${loserName}\nScore: ${winnerGoals}:${loserGoals}\nElo change: ${eloChange}\n\nDo you want to submit this match?`;
+        const message = `Confirm match submission:\n\nWinners: ${winnerNames}\nLosers: ${loserNames}\nScore: ${winnerGoals}:${loserGoals}\nElo change: ${eloChange}\n\nDo you want to submit this match?`;
         if (!confirm(message)) {
             return;
         }
@@ -78,20 +110,24 @@ export function setupMatchForm() {
         // Update players' ELO and games count
         const matchesColRef = collection(db, 'matches');
         const playersColRef = collection(db, 'players');
-
-        await Promise.all([
-            updateDoc(doc(playersColRef, tA1), { elo: pA1.elo + delta, games: pA1.games + 1 }),
-            updateDoc(doc(playersColRef, tA2), { elo: pA2.elo + delta, games: pA2.games + 1 }),
-            updateDoc(doc(playersColRef, tB1), { elo: pB1.elo - delta, games: pB1.games + 1 }),
-            updateDoc(doc(playersColRef, tB2), { elo: pB2.elo - delta, games: pB2.games + 1 }),
-        ]);
+        // For each player, update ELO and games
+        const updatePromises = [];
+        teamA.forEach(name => {
+            const p = playerMap[name];
+            updatePromises.push(updateDoc(doc(playersColRef, name), { elo: p.elo + delta, games: (p.games || 0) + 1 }));
+        });
+        teamB.forEach(name => {
+            const p = playerMap[name];
+            updatePromises.push(updateDoc(doc(playersColRef, name), { elo: p.elo - delta, games: (p.games || 0) + 1 }));
+        });
+        await Promise.all(updatePromises);
 
         // Add match log
         try {
             // 1. Build match data object
             const matchData = {
-                teamA: [tA1, tA2],
-                teamB: [tB1, tB2],
+                teamA: teamA,
+                teamB: teamB,
                 winner: winner,
                 goalsA: parsedGoalsA,
                 goalsB: parsedGoalsB,

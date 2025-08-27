@@ -124,12 +124,12 @@ export function getEloGainsAndLosses(playerName) {
         const playerWasWinner = (isPlayerInTeamA && match.winner === 'A') || (!isPlayerInTeamA && match.winner === 'B');
         const eloDelta = match.eloDelta || 0;
         const opponents = isPlayerInTeamA ? match.teamB : match.teamA;
-
+        // account for multiple opponents by dividing the eloDelta equally
+        const perOpponentDelta = eloDelta / opponents.length;
         opponents.forEach(opponent => {
             if (!netEloChanges[opponent]) netEloChanges[opponent] = 0;
-            // multiply by 0.5 to account for the fact that ELO is shared between two players
-            if (playerWasWinner) netEloChanges[opponent] += eloDelta * 0.5;
-            else netEloChanges[opponent] -= eloDelta * 0.5;
+            if (playerWasWinner) netEloChanges[opponent] += perOpponentDelta;
+            else netEloChanges[opponent] -= perOpponentDelta;
         });
     }
     return netEloChanges;

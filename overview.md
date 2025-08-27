@@ -10,6 +10,11 @@ Kickelo is a web application for tracking foosball (table soccer) matches using 
 
 The app is currently functional, with real-time updates via Firestore, a modern modular JavaScript codebase, and a responsive UI. It supports both live and manual match entry, and provides rich player and match analytics.
 
+**As of 2025-08, Kickelo supports both 2v2 and 1v1 matches.**
+- The match form allows the same player to be selected for both positions on a team, or just one field to be filled, enabling 1v1 matches.
+- All stats, leaderboards, and match history are compatible with both 1v1 and 2v2 matches.
+- The pairing suggestion feature only suggests 2v2 pairings, but is robust to 1v1 matches in the match history.
+
 ## Technical Overview
 
 - **Frontend:** Vanilla JavaScript (ES modules), HTML, CSS (custom properties for theming)
@@ -38,20 +43,21 @@ The app is currently functional, with real-time updates via Firestore, a modern 
 - **dom-elements.js**: Centralized references to all key DOM elements (inputs, buttons, modals, etc.).
 - **modal-handler.js**: Handles player selection modal, including loading players, saving active players, and triggering pairing suggestions.
 - **player-manager.js**: Ensures player existence in Firestore, populates player dropdowns, and handles new player creation.
-- **match-form-handler.js**: Handles match form submission (manual and live), validates input, updates player ratings, and records matches in Firestore.
+- **match-form-handler.js**: Handles match form submission (manual and live), validates input, updates player ratings, and records matches in Firestore. Supports both 1v1 and 2v2 matches.
 - **leaderboard-display.js**: Renders the leaderboard from allPlayers, shows streaks and daily Elo changes, and handles player click events.
-- **recent-matches-display.js**: Renders a list of recent matches, including goal timelines if available.
+- **recent-matches-display.js**: Renders a list of recent matches, including goal timelines if available. Compatible with both 1v1 and 2v2 matches.
 - **player-stats-component.js**: Custom modal/component for detailed player stats (Elo trajectory, win/loss ratios, streaks, etc.), uses Chart.js.
 - **match-timeline.js**: Utilities for rendering SVG timelines of match goal logs.
 
 ### Analytics and Pairing
-- **player-stats-service.js**: Computes player stats (Elo history, win/loss ratios, streaks, etc.) from cached data.
-- **pairing-service.js**: Suggests fair pairings based on recent play history, session logic, and co/opp counts.
+- **player-stats-service.js**: Computes player stats (Elo history, win/loss ratios, streaks, etc.) from cached data. Fully compatible with both 1v1 and 2v2 matches.
+- **pairing-service.js**: Suggests fair pairings based on recent play history, session logic, and co/opp counts. Only suggests 2v2 pairings, but is robust to 1v1 matches in the match history.
 - **elo-service.js**: Elo rating calculation utilities (expected score, rating update).
 
 ## Data Model
 - **Players**: `{ id, name, elo, games }`
 - **Matches**: `{ id, teamA, teamB, winner, goalsA, goalsB, eloDelta, timestamp, goalLog?, matchDuration?, vibrationLogPath? }`
+  - `teamA` and `teamB` are arrays of player names, length 1 (1v1) or 2 (2v2).
 
 ## UI Features
 - SVG foosball table with overlayed player selectors
