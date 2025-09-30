@@ -7,6 +7,8 @@ import {
     getStreakyness,
     getGoalStats,
     getHighestElo,
+    getGoldenRatio,
+    getComebackPercentage,
 } from './player-stats-service.js';
 import { allMatches } from './match-data-service.js';
 import { MAX_GOALS } from './constants.js';
@@ -132,6 +134,7 @@ template.innerHTML = `
             display: flex;
             justify-content: space-around;
             text-align: center;
+            flex-wrap: wrap;
         }
 
         .snapshot-item {
@@ -145,7 +148,7 @@ template.innerHTML = `
         }
 
         .snapshot-item p {
-            margin: 0;
+            margin: 10px;
             font-size: 0.9em;
             color: var(--text-color-secondary);
             display: inline-flex;
@@ -560,6 +563,11 @@ class PlayerStatsComponent extends HTMLElement {
         if (gains.length === 0 && losses.length === 0) { container.innerHTML = `<p style="text-align: center; width: 100%;">No ELO changes recorded.</p>`; }
     }
 
+    /**
+     * Performance Snapshot now displays two rows of three items each for clarity and space.
+     * Row 1: Wins/Losses, Longest Win Streak, Streakyness
+     * Row 2: All Time Highest ELO, Golden Ratio, Comeback Percentage
+     */
     renderPerformanceSnapshot(streaks, streakyness, playerName) {
         const container = this.shadowRoot.getElementById('performanceContainer');
         if (!container) return;
@@ -568,62 +576,78 @@ class PlayerStatsComponent extends HTMLElement {
         let streakynessClass = '';
         if (streakynessScore > 1.1) streakynessClass = 'streaky';
         if (streakynessScore < 0.9) streakynessClass = 'consistent';
-
         const highestElo = getHighestElo(playerName);
+        const goldenRatio = getGoldenRatio(playerName);
+        const goldenRatioDisplay = goldenRatio !== null ? (goldenRatio * 100).toFixed(0) + '%' : '-';
+        const comebackPercentage = getComebackPercentage(playerName);
+        const comebackDisplay = comebackPercentage !== null ? (comebackPercentage * 100).toFixed(0) + '%' : '-';
 
         container.innerHTML = `
-            <div class="snapshot-item">
-                <h4>${streakyness.totalWins}/${streakyness.totalLosses}</h4>
-                <p>Wins/Losses</p>
+            <div style="display: flex; justify-content: space-around; margin-bottom: 10px;">
+                <div class="snapshot-item">
+                    <h4>${streakyness.totalWins}/${streakyness.totalLosses}</h4>
+                    <p>Wins/Losses</p>
+                </div>
+                <div class="snapshot-item">
+                    <h4>${streaks.longestWinStreak}</h4>
+                    <p>Longest Win Streak</p>
+                </div>
+                <div class="snapshot-item">
+                    <h4 class="${streakynessClass}">${streakynessScore}</h4>
+                    <p>
+                        Streakyness
+                        <span class="info-icon">i</span>
+                    </p>
+                    <span class="tooltip">A score > 1 suggests a "streaky" player. It compares the chance of two consecutive matches having the same result to the chance of two random matches of the player to have the same result.</span>
+                </div>
             </div>
-            <div class="snapshot-item">
-                <h4>${streaks.longestWinStreak}</h4>
-                <p>Longest Win Streak</p>
-            </div>
-            <div class="snapshot-item">
-                <h4 class="${streakynessClass}">${streakynessScore}</h4>
-                <p>
-                    Streakyness
-                    <span class="info-icon">i</span>
-                </p>
-                <span class="tooltip">A score > 1 suggests a "streaky" player. It compares the chance of two consecutive matches having the same result to the chance of two random matches of the player to have the same result.</span>
-            </div>
-            <div class="snapshot-item">
-                <h4>${highestElo !== null ? highestElo : '-'}</h4>
-                <p>All Time Highest ELO</p>
+            <div style="display: flex; justify-content: space-around;">
+                <div class="snapshot-item">
+                    <h4>${highestElo !== null ? highestElo : '-'}</h4>
+                    <p>All Time Highest ELO</p>
+                </div>
+                <div class="snapshot-item">
+                    <h4>${goldenRatioDisplay}</h4>
+                    <p>
+                        Golden Ratio
+                        <span class="info-icon">i</span>
+                    </p>
+                    <span class="tooltip">Ratio of 5:4 wins to all 5:4 games (won or lost).</span>
+                </div>
+                <div class="snapshot-item">
+                    <h4>${comebackDisplay}</h4>
+                    <p>
+                        Comeback Ratio
+                        <span class="info-icon">i</span>
+                    </p>
+                    <span class="tooltip">Win-rate in games where player fell behind at any point.</span>
+                </div>
             </div>
         `;
 
-        // Add event listener for the new info icon
-        const infoIcon = container.querySelector('.info-icon');
-        const tooltip = container.querySelector('.tooltip');
-
-        if(infoIcon && tooltip) {
-            infoIcon.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const isVisible = tooltip.classList.toggle('visible');
-
-                if (isVisible) {
-                    tooltip.style.width = '220px'; // Set a fixed width for the tooltip
-
-                    const scrollableBody = this.shadowRoot.querySelector('.modal-body-scrollable');
-                    const iconRect = infoIcon.getBoundingClientRect();
-                    const bodyRect = scrollableBody.getBoundingClientRect();
-
-                    const top = (iconRect.top - bodyRect.top) + scrollableBody.scrollTop - tooltip.offsetHeight - 10;
-                    const left = (scrollableBody.offsetWidth / 2) - (tooltip.offsetWidth / 2);
-
-                    tooltip.style.top = `${top}px`;
-                    tooltip.style.left = `${left}px`;
-
-                    this.shadowRoot.querySelector('.modal-body-scrollable').addEventListener('click', this.boundHideTooltip, { once: true });
-
-                } else {
-                    // If we're hiding it by clicking the icon again, remove the listener
-                    this.shadowRoot.querySelector('.modal-body-scrollable').removeEventListener('click', this.boundHideTooltip);
-                }
-            });
-        }
+        // Add event listeners for info icons and tooltips
+        const infoIcons = container.querySelectorAll('.info-icon');
+        const tooltips = container.querySelectorAll('.tooltip');
+        infoIcons.forEach((icon, idx) => {
+            const tooltip = tooltips[idx];
+            if (icon && tooltip) {
+                icon.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const isVisible = tooltip.classList.toggle('visible');
+                    if (isVisible) {
+                        tooltip.style.width = '220px';
+                        const scrollableBody = this.shadowRoot.querySelector('.modal-body-scrollable');
+                        const iconRect = icon.getBoundingClientRect();
+                        const bodyRect = scrollableBody.getBoundingClientRect();
+                        const top = (iconRect.top - bodyRect.top) + scrollableBody.scrollTop - tooltip.offsetHeight - 10;
+                        const left = (scrollableBody.offsetWidth / 2) - (tooltip.offsetWidth / 2);
+                        tooltip.style.top = `${top}px`;
+                        tooltip.style.left = `${left}px`;
+                        this.shadowRoot.querySelector('.modal-body-scrollable').addEventListener('click', this.boundHideTooltip, { once: true });
+                    }
+                });
+            }
+        });
     }
 
     renderRecentMatches() {

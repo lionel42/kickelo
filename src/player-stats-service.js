@@ -348,3 +348,96 @@ export function getHighestElo(playerName) {
     }
     return Math.round(highestElo);
 }
+
+/**
+ * Calculates the 'golden ratio' for a player: ratio of games won 5:4 to (games won 5:4 + games lost 4:5).
+ * @param {string} playerName - The name of the player.
+ * @returns {number|null} Golden ratio, or null if no relevant games.
+ */
+export function getGoldenRatio(playerName) {
+    if (!isMatchesDataReady) return null;
+    let won54 = 0;
+    let lost45 = 0;
+    let consideredMatches = 0;
+    for (const match of allMatches) {
+        const isPlayerInTeamA = match.teamA.includes(playerName);
+        const isPlayerInTeamB = match.teamB.includes(playerName);
+        if (!isPlayerInTeamA && !isPlayerInTeamB) continue;
+        consideredMatches++;
+        const playerWasWinner = (isPlayerInTeamA && match.winner === 'A') || (isPlayerInTeamB && match.winner === 'B');
+        // Debug: print match info
+        console.debug('[GoldenRatio] Match:', {
+            teamA: match.teamA,
+            teamB: match.teamB,
+            scoreA: match.goalsA,
+            scoreB: match.goalsB,
+            winner: match.winner,
+            isPlayerInTeamA,
+            isPlayerInTeamB,
+            playerWasWinner
+        });
+        if (playerWasWinner && ((isPlayerInTeamA && match.goalsA === 5 && match.goalsB === 4) || (isPlayerInTeamB && match.scoreB === 5 && match.scoreA === 4))) {
+            won54++;
+            console.debug('[GoldenRatio] Increment won54:', won54);
+        } else if (!playerWasWinner && ((isPlayerInTeamA && match.goalsA === 4 && match.goalsB === 5) || (isPlayerInTeamB && match.scoreB === 4 && match.scoreA === 5))) {
+            lost45++;
+            console.debug('[GoldenRatio] Increment lost45:', lost45);
+        }
+    }
+    const total = won54 + lost45;
+    console.debug('[GoldenRatio] Final counts:', {won54, lost45, total, consideredMatches});
+    if (total === 0) {
+        console.debug('[GoldenRatio] Returning null because total is 0');
+        return null;
+    }
+    return won54 / total;
+}
+
+/**
+ * Calculates the 'comeback percentage' for a player: win-rate in games with a goal log where the player fell behind at any point.
+ * @param {string} playerName - The name of the player.
+ * @returns {number|null} Comeback win percentage, or null if no comeback games.
+ */
+export function getComebackPercentage(playerName) {
+    if (!isMatchesDataReady) return null;
+    let comebackGames = 0;
+    let comebackWins = 0;
+    let consideredMatches = 0;
+    for (const match of allMatches) {
+        if (!match.goalLog || !Array.isArray(match.goalLog) || match.goalLog.length === 0) {
+            console.debug('[Comeback%] Skipping match, no valid goalLog:', match);
+            continue;
+        }
+        const isPlayerInTeamA = match.teamA.includes(playerName);
+        const isPlayerInTeamB = match.teamB.includes(playerName);
+        if (!isPlayerInTeamA && !isPlayerInTeamB) continue;
+        consideredMatches++;
+        let teamAGoals = 0;
+        let teamBGoals = 0;
+        let playerFellBehind = false;
+        for (const goal of match.goalLog) {
+            if (goal.team === 'red') teamAGoals++;
+            else if (goal.team === 'blue') teamBGoals++;
+            // Debug: print goal progress
+            console.debug('[Comeback%] Goal:', {goal, teamAGoals, teamBGoals});
+            if (isPlayerInTeamA && teamAGoals < teamBGoals) playerFellBehind = true;
+            if (isPlayerInTeamB && teamBGoals < teamAGoals) playerFellBehind = true;
+        }
+        console.debug('[Comeback%] Match:', {
+            teamA: match.teamA,
+            teamB: match.teamB,
+            winner: match.winner,
+            isPlayerInTeamA,
+            isPlayerInTeamB,
+            playerFellBehind
+        });
+        if (playerFellBehind) {
+            comebackGames++;
+            const playerWasWinner = (isPlayerInTeamA && match.winner === 'A') || (isPlayerInTeamB && match.winner === 'B');
+            if (playerWasWinner) comebackWins++;
+        }
+    }
+    if (comebackGames === 0) return null;
+    return comebackWins / comebackGames;
+}
+
