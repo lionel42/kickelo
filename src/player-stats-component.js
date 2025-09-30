@@ -9,6 +9,7 @@ import {
     getHighestElo,
     getGoldenRatio,
     getComebackPercentage,
+    getAverageTimeBetweenGoals,
 } from './player-stats-service.js';
 import { allMatches } from './match-data-service.js';
 import { MAX_GOALS } from './constants.js';
@@ -369,6 +370,14 @@ template.innerHTML = `
                         </div>
                     </div>
                 </div>
+
+                <!-- Goal Timing Stats Section -->
+                <div id="goalTimingStats" class="stats-section">
+                    <h3>Goal Timing Snapshot</h3>
+                     <div id="goalTimingStatsContainer" class="performance-snapshot-container">
+                        <!-- Content will be rendered here -->
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -424,6 +433,7 @@ class PlayerStatsComponent extends HTMLElement {
                 getStreakyness(this.playerName),
                 getGoalStats(this.playerName)
             ];
+            const goalTimingStats = getAverageTimeBetweenGoals(this.playerName);
 
             this.renderEloGraph(eloTrajectory);
             this.renderRecentMatches();
@@ -432,6 +442,7 @@ class PlayerStatsComponent extends HTMLElement {
             this.renderWinLossTable(winLossRatios);
             this.renderTeammateWinLossTable(teammateRatios);
             this.renderGoalStats(goalStats);
+            this.renderGoalTimingStats(goalTimingStats);
 
             loadingEl.style.display = 'none';
             statsContentEl.style.display = 'block';
@@ -765,6 +776,34 @@ class PlayerStatsComponent extends HTMLElement {
         this.chartInstances.push(chart);
     }
 
+    /**
+     * Renders average time between goals for player's team and opponents in mm:ss format, using snapshot layout.
+     * @param {{ avgTimePerTeamGoal: number|null, avgTimePerOpponentGoal: number|null }} stats
+     */
+    renderGoalTimingStats(stats) {
+        const container = this.shadowRoot.getElementById('goalTimingStatsContainer');
+        if (!container) return;
+        // Helper to format ms to mm:ss
+        function formatMsToMinSec(ms) {
+            if (ms === null) return 'N/A';
+            const totalSeconds = Math.round(ms / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+        container.innerHTML = `
+            <div style="display: flex; justify-content: space-around; text-align: center;">
+                <div class="snapshot-item">
+                    <h4>${formatMsToMinSec(stats.avgTimePerTeamGoal)}</h4>
+                    <p>Avg Time Between Team Goals</p>
+                </div>
+                <div class="snapshot-item">
+                    <h4>${formatMsToMinSec(stats.avgTimePerOpponentGoal)}</h4>
+                    <p>Avg Time Between Opponent Goals</p>
+                </div>
+            </div>
+        `;
+    }
     close() {
         this.hideTooltip();
         this.parentNode.classList.remove('visible');

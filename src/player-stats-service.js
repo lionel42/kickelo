@@ -441,3 +441,37 @@ export function getComebackPercentage(playerName) {
     return comebackWins / comebackGames;
 }
 
+/**
+ * Computes average time between goals for a player's team and opposing teams.
+ * Only considers matches with a goalLog.
+ * @param {string} playerName - The name/id of the player.
+ * @returns {{ avgTimePerTeamGoal: number|null, avgTimePerOpponentGoal: number|null }}
+ */
+export function getAverageTimeBetweenGoals(playerName) {
+    if (!isMatchesDataReady) return { avgTimePerTeamGoal: null, avgTimePerOpponentGoal: null };
+    let totalTimePlayed = 0;
+    let totalTeamGoals = 0;
+    let totalOpponentGoals = 0;
+    const relevantMatches = allMatches.filter(match =>
+        (match.teamA.includes(playerName) || match.teamB.includes(playerName)) && Array.isArray(match.goalLog) && match.goalLog.length > 0
+    );
+    for (const match of relevantMatches) {
+        const isPlayerInTeamA = match.teamA.includes(playerName);
+        const playerTeam = isPlayerInTeamA ? 'red' : 'blue';
+        const opponentTeam = isPlayerInTeamA ? 'blue' : 'red';
+        // Match duration: use last goal timestamp, or fallback to match.matchDuration or 0
+        let matchDuration = 0;
+        if (match.goalLog.length > 0) {
+            matchDuration = Math.max(...match.goalLog.map(g => g.timestamp));
+        } else if (match.matchDuration) {
+            matchDuration = match.matchDuration;
+        }
+        totalTimePlayed += matchDuration;
+        totalTeamGoals += match.goalLog.filter(g => g.team === playerTeam).length;
+        totalOpponentGoals += match.goalLog.filter(g => g.team === opponentTeam).length;
+    }
+    return {
+        avgTimePerTeamGoal: totalTeamGoals > 0 ? totalTimePlayed / totalTeamGoals : null,
+        avgTimePerOpponentGoal: totalOpponentGoals > 0 ? totalTimePlayed / totalOpponentGoals : null
+    };
+}
