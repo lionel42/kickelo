@@ -315,3 +315,36 @@ export function getGoalStats(playerName) {
     }
     return { goalsFor, goalsAgainst, resultHistogram };
 }
+
+/**
+ * Calculates the all-time highest ELO for a given player.
+ * @param {string} playerName - The name of the player.
+ * @returns {number} The highest ELO ever reached by the player.
+ */
+export function getHighestElo(playerName) {
+    if (!isMatchesDataReady) {
+        console.warn("Match data is not ready yet.");
+        return null;
+    }
+    const playerInfo = getPlayerInfo(playerName);
+    if (!playerInfo) {
+        console.warn(`Player ${playerName} not found.`);
+        return null;
+    }
+    let currentElo = playerInfo.elo;
+    let highestElo = currentElo;
+    const relevantMatches = allMatches
+        .filter(match => match.teamA.includes(playerName) || match.teamB.includes(playerName));
+    for (const match of relevantMatches) {
+        const isPlayerInTeamA = match.teamA.includes(playerName);
+        const playerWasWinner = (isPlayerInTeamA && match.winner === 'A') || (!isPlayerInTeamA && match.winner === 'B');
+        const eloDelta = match.eloDelta || 0;
+        if (playerWasWinner) {
+            currentElo -= eloDelta;
+        } else {
+            currentElo += eloDelta;
+        }
+        if (currentElo > highestElo) highestElo = currentElo;
+    }
+    return Math.round(highestElo);
+}

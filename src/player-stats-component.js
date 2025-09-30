@@ -1,5 +1,3 @@
-// src/player-stats-component.js
-
 import {
     getEloTrajectory,
     getWinLossRatios,
@@ -8,6 +6,7 @@ import {
     getLongestStreaks,
     getStreakyness,
     getGoalStats,
+    getHighestElo,
 } from './player-stats-service.js';
 import { allMatches } from './match-data-service.js';
 import { MAX_GOALS } from './constants.js';
@@ -22,7 +21,7 @@ template.innerHTML = `
         /* Component-specific styles to keep things encapsulated */
         .modal-content {
             background-color: var(--background-color-dark);
-            padding: 0px;
+            padding: 0;
             border-radius: 10px;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
             width: 800px;
@@ -171,7 +170,7 @@ template.innerHTML = `
 
         .tooltip {
             visibility: hidden;
-            width: 0px;
+            width: 0;
             background-color: #333;
             color: #fff;
             text-align: center;
@@ -425,7 +424,7 @@ class PlayerStatsComponent extends HTMLElement {
 
             this.renderEloGraph(eloTrajectory);
             this.renderRecentMatches();
-            this.renderPerformanceSnapshot(longestStreaks, streakyness);
+            this.renderPerformanceSnapshot(longestStreaks, streakyness, this.playerName);
             this.renderEloFlowCharts(eloGainsLosses);
             this.renderWinLossTable(winLossRatios);
             this.renderTeammateWinLossTable(teammateRatios);
@@ -561,7 +560,7 @@ class PlayerStatsComponent extends HTMLElement {
         if (gains.length === 0 && losses.length === 0) { container.innerHTML = `<p style="text-align: center; width: 100%;">No ELO changes recorded.</p>`; }
     }
 
-    renderPerformanceSnapshot(streaks, streakyness) {
+    renderPerformanceSnapshot(streaks, streakyness, playerName) {
         const container = this.shadowRoot.getElementById('performanceContainer');
         if (!container) return;
 
@@ -569,6 +568,8 @@ class PlayerStatsComponent extends HTMLElement {
         let streakynessClass = '';
         if (streakynessScore > 1.1) streakynessClass = 'streaky';
         if (streakynessScore < 0.9) streakynessClass = 'consistent';
+
+        const highestElo = getHighestElo(playerName);
 
         container.innerHTML = `
             <div class="snapshot-item">
@@ -586,6 +587,10 @@ class PlayerStatsComponent extends HTMLElement {
                     <span class="info-icon">i</span>
                 </p>
                 <span class="tooltip">A score > 1 suggests a "streaky" player. It compares the chance of two consecutive matches having the same result to the chance of two random matches of the player to have the same result.</span>
+            </div>
+            <div class="snapshot-item">
+                <h4>${highestElo !== null ? highestElo : '-'}</h4>
+                <p>All Time Highest ELO</p>
             </div>
         `;
 
@@ -689,7 +694,8 @@ class PlayerStatsComponent extends HTMLElement {
         }
         // Create the bar chart
         const ctx = canvas.getContext('2d');
-        const chart = new Chart(ctx, {
+        const chart = new Chart(ctx,
+            {
             type: 'bar',
             data: {
                 labels: labels,
@@ -710,28 +716,28 @@ class PlayerStatsComponent extends HTMLElement {
                             display: true,
                             text: 'Result',
                             color: '#ccc',
-                            font: { size: 14, weight: 'bold' }
+                            font: {size: 14, weight: 'bold'}
                         },
-                        ticks: { color: '#ccc', font: { size: 12 } },
-                        grid: { color: 'rgba(170, 170, 170, 0.2)' },
+                        ticks: {color: '#ccc', font: {size: 12}},
+                        grid: {color: 'rgba(170, 170, 170, 0.2)'},
                     },
                     y: {
                         title: {
                             display: true,
                             text: 'Count',
                             color: '#ccc',
-                            font: { size: 14, weight: 'bold' }
+                            font: {size: 14, weight: 'bold'}
                         },
                         beginAtZero: true,
-                        ticks: { color: '#ccc', stepSize: 1 },
-                        grid: { color: 'rgba(170, 170, 170, 0.2)' }
+                        ticks: {color: '#ccc', stepSize: 1},
+                        grid: {color: 'rgba(170, 170, 170, 0.2)'}
                     }
                 },
                 plugins: {
-                    legend: { display: false }
+                    legend: {display: false}
                 }
-            }
-        });
+            }}
+        );
         this.chartInstances.push(chart);
     }
 
