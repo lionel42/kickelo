@@ -1,5 +1,3 @@
-// src/pairing-service.js
-
 import { db, getDoc, doc } from './firebase-service.js'; // Only need db access for the session doc
 import { allMatches } from './match-data-service.js';
 import { allPlayers } from './player-data-service.js';
@@ -107,7 +105,7 @@ function scorePairing(p, data) {
   } = data;
 
   const w = {
-    sessionPlays: 1000.0,
+    sessionPlays: 100000.0,
     sessionTeammateRepeat: 100.0,
     historicTeammateRepeat: 20.0,
     sessionOpponentRepeat: 40.0,
@@ -130,6 +128,18 @@ function scorePairing(p, data) {
 
   const eloA0 = eloMap[teamA[0]], eloA1 = eloMap[teamA[1]];
   const eloB0 = eloMap[teamB[0]], eloB1 = eloMap[teamB[1]];
+
+  // log some things for debugging
+    console.log(`Pairing: [${teamA[0]}, ${teamA[1]}] vs) [${teamB[0]}, ${teamB[1]}]`);
+    console.log(`  Plays in session: ${playsSess}`);
+    console.log(`  Teammate repeats - session: ${repSess}, historic: ${repHist}`);
+    console.log(`  Opponent repeats - session: ${oppRepSess}, historic: ${
+    oppRepHist}`);
+    console.log(`  Elo A: ${eloA0}, ${eloA1}; Elo B: ${eloB0}, ${eloB1}`);
+    console.log(`  Intra-team Elo diff: ${Math.abs(eloA0 - eloA1)} + ${Math.abs(eloB0 - eloB1)} = ${Math.abs(eloA0 - eloA1) + Math.abs(eloB0 - eloB1)}`);
+    console.log(`  Inter-team Elo diff: |${(eloA0 + eloA1) / 2} - ${(eloB0 + eloB1) / 2}| = ${Math.abs((eloA0 + eloA1) / 2 - (eloB0 + eloB1) / 2)}`);
+
+
   const intraDiff = Math.abs(eloA0 - eloA1) + Math.abs(eloB0 - eloB1);
   const interDiff = Math.abs((eloA0 + eloA1) / 2 - (eloB0 + eloB1) / 2);
 
