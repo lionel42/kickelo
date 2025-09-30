@@ -1,7 +1,7 @@
 // Import from the centralized data services
 import { isDataReady as isMatchesDataReady, allMatches } from "./match-data-service.js";
 import { allPlayers } from "./player-data-service.js";
-
+import { MAX_GOALS } from "./constants.js";
 
 function getPlayerInfo(playerName) {
     // Find the player in the centrally managed 'allPlayers' array.
@@ -376,10 +376,10 @@ export function getGoldenRatio(playerName) {
             isPlayerInTeamB,
             playerWasWinner
         });
-        if (playerWasWinner && ((isPlayerInTeamA && match.goalsA === 5 && match.goalsB === 4) || (isPlayerInTeamB && match.scoreB === 5 && match.scoreA === 4))) {
+        if (playerWasWinner && ((isPlayerInTeamA && match.goalsB === MAX_GOALS-1) || (isPlayerInTeamB && match.goalsA === MAX_GOALS-1))) {
             won54++;
             console.debug('[GoldenRatio] Increment won54:', won54);
-        } else if (!playerWasWinner && ((isPlayerInTeamA && match.goalsA === 4 && match.goalsB === 5) || (isPlayerInTeamB && match.scoreB === 4 && match.scoreA === 5))) {
+        } else if (!playerWasWinner && ((isPlayerInTeamA && match.goalsA === MAX_GOALS-1) || (isPlayerInTeamB && match.goalsB === MAX_GOALS-1))) {
             lost45++;
             console.debug('[GoldenRatio] Increment lost45:', lost45);
         }
