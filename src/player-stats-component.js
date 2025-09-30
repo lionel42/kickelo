@@ -596,9 +596,9 @@ class PlayerStatsComponent extends HTMLElement {
                     <h4 class="${streakynessClass}">${streakynessScore}</h4>
                     <p>
                         Streakyness
-                        <span class="info-icon">i</span>
+<!--                        <span class="info-icon">i</span>-->
                     </p>
-                    <span class="tooltip">A score > 1 suggests a "streaky" player. It compares the chance of two consecutive matches having the same result to the chance of two random matches of the player to have the same result.</span>
+<!--                    <span class="tooltip">A score > 1 suggests a "streaky" player. It compares the chance of two consecutive matches having the same result to the chance of two random matches of the player to have the same result.</span>-->
                 </div>
             </div>
             <div style="display: flex; justify-content: space-around;">
@@ -610,17 +610,17 @@ class PlayerStatsComponent extends HTMLElement {
                     <h4>${goldenRatioDisplay}</h4>
                     <p>
                         Golden Ratio
-                        <span class="info-icon">i</span>
+<!--                        <span class="info-icon">i</span>-->
                     </p>
-                    <span class="tooltip">Ratio of 5:4 wins to all 5:4 games (won or lost).</span>
+<!--                    <span class="tooltip">Ratio of 5:4 wins to all 5:4 games (won or lost).</span>-->
                 </div>
                 <div class="snapshot-item">
                     <h4>${comebackDisplay}</h4>
                     <p>
                         Comeback Ratio
-                        <span class="info-icon">i</span>
+<!--                        <span class="info-icon">i</span>-->
                     </p>
-                    <span class="tooltip">Win-rate in games where player fell behind at any point.</span>
+<!--                    <span class="tooltip">Win-rate in games where player fell behind at any point.</span>-->
                 </div>
             </div>
         `;
