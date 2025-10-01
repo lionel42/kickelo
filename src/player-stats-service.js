@@ -365,23 +365,10 @@ export function getGoldenRatio(playerName) {
         if (!isPlayerInTeamA && !isPlayerInTeamB) continue;
         consideredMatches++;
         const playerWasWinner = (isPlayerInTeamA && match.winner === 'A') || (isPlayerInTeamB && match.winner === 'B');
-        // Debug: print match info
-        console.debug('[GoldenRatio] Match:', {
-            teamA: match.teamA,
-            teamB: match.teamB,
-            scoreA: match.goalsA,
-            scoreB: match.goalsB,
-            winner: match.winner,
-            isPlayerInTeamA,
-            isPlayerInTeamB,
-            playerWasWinner
-        });
         if (playerWasWinner && ((isPlayerInTeamA && match.goalsB === MAX_GOALS-1) || (isPlayerInTeamB && match.goalsA === MAX_GOALS-1))) {
             won54++;
-            console.debug('[GoldenRatio] Increment won54:', won54);
         } else if (!playerWasWinner && ((isPlayerInTeamA && match.goalsA === MAX_GOALS-1) || (isPlayerInTeamB && match.goalsB === MAX_GOALS-1))) {
             lost45++;
-            console.debug('[GoldenRatio] Increment lost45:', lost45);
         }
     }
     const total = won54 + lost45;
@@ -418,19 +405,9 @@ export function getComebackPercentage(playerName) {
         for (const goal of match.goalLog) {
             if (goal.team === 'red') teamAGoals++;
             else if (goal.team === 'blue') teamBGoals++;
-            // Debug: print goal progress
-            console.debug('[Comeback%] Goal:', {goal, teamAGoals, teamBGoals});
             if (isPlayerInTeamA && teamAGoals < teamBGoals) playerFellBehind = true;
             if (isPlayerInTeamB && teamBGoals < teamAGoals) playerFellBehind = true;
         }
-        console.debug('[Comeback%] Match:', {
-            teamA: match.teamA,
-            teamB: match.teamB,
-            winner: match.winner,
-            isPlayerInTeamA,
-            isPlayerInTeamB,
-            playerFellBehind
-        });
         if (playerFellBehind) {
             comebackGames++;
             const playerWasWinner = (isPlayerInTeamA && match.winner === 'A') || (isPlayerInTeamB && match.winner === 'B');
