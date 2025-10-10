@@ -29,7 +29,13 @@ async function updateLeaderboardDisplay() {
         const li = document.createElement("li");
 
         const playerInfoSpan = document.createElement('span');
-        playerInfoSpan.textContent = `${player.name}: ${player.elo}`;
+        // append a heart emoji only if the player name is "Julia"
+
+        if (player.name === "Julia") {
+            playerInfoSpan.textContent = `${player.name} ❤️: ${player.elo}`;
+        } else {
+            playerInfoSpan.textContent = `${player.name}: ${player.elo}`;
+        }
 
         const indicatorsContainer = document.createElement('span');
         indicatorsContainer.style.display = 'flex';
