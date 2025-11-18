@@ -25,7 +25,8 @@ export function initializeMatchesData() {
 
     // onSnapshot listens for any changes in the 'matches' collection
     return onSnapshot(matchesColRef, (snapshot) => {
-        console.log("Match data updated from Firestore.");
+        console.log(`Match data updated from Firestore. Snapshot size: ${snapshot.size}`);
+
         const matchesData = [];
         snapshot.forEach((doc) => {
             matchesData.push({ id: doc.id, ...doc.data() });

@@ -54,19 +54,22 @@ export function computeAllPlayerStats(matches) {
             goldenRatio: null,
             goldenCounts: { won54: 0, lost45: 0 },
             comebackCounts: { games: 0, wins: 0 },
-            avgTimeBetweenGoals: { totalTimePlayed: 0, totalTeamGoals: 0, totalOpponentGoals: 0 },
-            eloAtStartOfDay: STARTING_ELO
+            avgTimeBetweenGoals: { totalTimePlayed: 0, totalTeamGoals: 0, totalOpponentGoals: 0 }
         };
     }
+
+    console.log(`Computing stats for ${players.length} players over ${matches.length} matches..`);
 
     // Process all matches in reverse order (oldest to most recent)
     for (let i = matches.length - 1; i >= 0; i--) {
         const match = matches[i];
-        const isToday = match.timestamp >= startOfDayTimestamp;
         const hasGoalLog = Array.isArray(match.goalLog) && match.goalLog.length > 0;
         
-        // Defensive: skip invalid matches
-        if (!Array.isArray(match.teamA) || !Array.isArray(match.teamB)) continue;
+        // Defensive: skip invalid matches add log a warning
+        if (!Array.isArray(match.teamA) || !Array.isArray(match.teamB)) {
+            console.warn(`Skipping invalid match with id ${match.id}: missing teamA or teamB array`);
+            continue;
+        }
         
         // Process each player involved in the match
         const allPlayersInMatch = [...match.teamA, ...match.teamB];
@@ -108,17 +111,6 @@ export function computeAllPlayerStats(matches) {
                 if (!s.winLossRatiosWithTeammates[teammate]) s.winLossRatiosWithTeammates[teammate] = { wins: 0, losses: 0 };
                 if (playerWasWinner) s.winLossRatiosWithTeammates[teammate].wins++;
                 else s.winLossRatiosWithTeammates[teammate].losses++;
-            }
-            
-            // Daily ELO change - track the first match of today we encounter (going backwards in time)
-            if (isToday) {
-                // Since we're iterating oldest-to-newest, this is the elo BEFORE this match
-                // We want to capture the elo at the START of the day (before the first match today)
-                let eloBeforeThisMatch = currentElo;
-                if (playerWasWinner) eloBeforeThisMatch -= eloDelta;
-                else eloBeforeThisMatch += eloDelta;
-                // Keep updating as we go through today's matches (will end up with elo before first match)
-                s.eloAtStartOfDay = eloBeforeThisMatch;
             }
             
             // Goal stats
@@ -192,9 +184,35 @@ export function computeAllPlayerStats(matches) {
     // Finalize stats for each player
     for (const playerName of players) {
         const s = stats[playerName];
-        // Daily ELO change - current elo is the last point in trajectory
+        
+        // Calculate daily ELO change
+        // Start with current ELO (last point in trajectory) and work backwards through today's matches
         const currentElo = s.eloTrajectory.length > 0 ? s.eloTrajectory[s.eloTrajectory.length - 1].elo : STARTING_ELO;
-        s.dailyEloChange = currentElo - s.eloAtStartOfDay;
+        let eloAtStartOfDay = currentElo;
+        
+        // Work backwards through today's matches (matches are sorted newest first)
+        for (const match of matches) {
+            const isToday = match.timestamp >= startOfDayTimestamp;
+            if (!isToday) break; // matches are sorted newest first, so we can stop
+            
+            if (!Array.isArray(match.teamA) || !Array.isArray(match.teamB)) continue;
+            
+            // Check if this player was in this match
+            const isTeamA = match.teamA.includes(playerName);
+            const isTeamB = match.teamB.includes(playerName);
+            if (!isTeamA && !isTeamB) continue; // Player not in this match
+            
+            const team = isTeamA ? 'A' : 'B';
+            const playerWasWinner = (team === match.winner);
+            const eloDelta = match.eloDelta || 0;
+            
+            // Work backwards: if they won, subtract delta; if they lost, add delta
+            if (playerWasWinner) eloAtStartOfDay -= eloDelta;
+            else eloAtStartOfDay += eloDelta;
+        }
+        
+        s.dailyEloChange = currentElo - eloAtStartOfDay;
+        
         // Streakyness
         const n = s.winCount + s.lossCount;
         if (n >= 2) {
@@ -228,7 +246,6 @@ export function computeAllPlayerStats(matches) {
         delete s.lossCount;
         delete s.consecutiveSame;
         delete s.lastResult;
-        delete s.eloAtStartOfDay;
         delete s.goldenCounts;
         delete s.comebackCounts;
         delete s.avgTimeBetweenGoals.totalTimePlayed;
