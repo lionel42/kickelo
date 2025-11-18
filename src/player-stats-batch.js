@@ -1,27 +1,26 @@
 import { MAX_GOALS } from "./constants.js";
 
 /**
- * Computes all statistics for a list of players (by name) over a list of matches.
- * @param {Array<Object>} matches - Array of match objects.
- * @param {Array<string>|null} players - Array of player names (IDs). If null, all players in matches are used.
+ * Computes all statistics for all players present in a list of matches.
+ * Matches must be sorted by timestamp (newest first, as they come from Firestore).
+ * @param {Array<Object>} matches - Array of match objects sorted by timestamp descending.
  * @returns {Object<string, Object>} Mapping from player id to their statistics.
  */
-export function computeAllPlayerStats(matches, players) {
+export function computeAllPlayerStats(matches) {
     const startTime = performance.now();
-    // If players is null/undefined, extract all unique player IDs from matches
-    if (!players) {
-        const playerSet = new Set();
-        for (const match of matches) {
-            for (const team of ['teamA', 'teamB']) {
-                if (Array.isArray(match[team])) {
-                    for (const pid of match[team]) {
-                        playerSet.add(pid);
-                    }
+    
+    // Extract all unique player IDs from matches
+    const playerSet = new Set();
+    for (const match of matches) {
+        for (const team of ['teamA', 'teamB']) {
+            if (Array.isArray(match[team])) {
+                for (const pid of match[team]) {
+                    playerSet.add(pid);
                 }
             }
         }
-        players = Array.from(playerSet);
     }
+    const players = Array.from(playerSet);
 
     // Prepare start of day timestamp for daily stats
     const startOfDay = new Date();
@@ -51,7 +50,7 @@ export function computeAllPlayerStats(matches, players) {
             consecutiveSame: 0,
             lastResult: null,
             goalStats: { goalsFor: 0, goalsAgainst: 0, resultHistogram: {} },
-            highestElo: 1500,
+            highestElo: 0,  // Will be set properly as we process matches
             goldenRatio: null,
             goldenCounts: { won54: 0, lost45: 0 },
             comebackCounts: { games: 0, wins: 0 },
@@ -65,117 +64,137 @@ export function computeAllPlayerStats(matches, players) {
         const match = matches[i];
         const isToday = match.timestamp >= startOfDayTimestamp;
         const hasGoalLog = Array.isArray(match.goalLog) && match.goalLog.length > 0;
-        for (const team of ['A', 'B']) {
-            const teamPlayers = match[team === 'A' ? 'teamA' : 'teamB'];
-            const oppPlayers = match[team === 'A' ? 'teamB' : 'teamA'];
-            const teamGoals = match[team === 'A' ? 'goalsA' : 'goalsB'];
-            const oppGoals = match[team === 'A' ? 'goalsB' : 'goalsA'];
-            for (const playerId of teamPlayers) {
-                if (!stats[playerId]) continue;
-                const s = stats[playerId];
+        
+        // Defensive: skip invalid matches
+        if (!Array.isArray(match.teamA) || !Array.isArray(match.teamB)) continue;
+        
+        // Process each player involved in the match
+        const allPlayersInMatch = [...match.teamA, ...match.teamB];
+        for (const playerId of allPlayersInMatch) {
+            if (!stats[playerId]) continue;
+            const s = stats[playerId];
+            
+            // Determine which team the player is on
+            const isTeamA = match.teamA.includes(playerId);
+            const team = isTeamA ? 'A' : 'B';
+            const teamPlayers = isTeamA ? match.teamA : match.teamB;
+            const oppPlayers = isTeamA ? match.teamB : match.teamA;
+            const teamGoals = isTeamA ? match.goalsA : match.goalsB;
+            const oppGoals = isTeamA ? match.goalsB : match.goalsA;
+            
+            // ELO trajectory
+            let currentElo = s.eloTrajectory.length > 0 ? s.eloTrajectory[s.eloTrajectory.length - 1].elo : 1500;
+            const playerWasWinner = (team === match.winner);
+            const eloDelta = match.eloDelta || 0;
+            if (playerWasWinner) currentElo += eloDelta;
+            else currentElo -= eloDelta;
+            s.eloTrajectory.push({ elo: Math.round(currentElo), timestamp: match.timestamp });
+            if (Math.round(currentElo) > s.highestElo) s.highestElo = Math.round(currentElo);
 
-                // ELO trajectory
-                let currentElo = s.eloTrajectory.length > 0 ? s.eloTrajectory[-1].elo : 1500;
-                const playerWasWinner = (team === match.winner);
-                const eloDelta = match.eloDelta || 0;
-                if (playerWasWinner) currentElo += eloDelta;
-                else currentElo -= eloDelta;
-                s.eloTrajectory.push({ elo: Math.round(currentElo), timestamp: match.timestamp });
-                if (currentElo > s.highestElo) s.highestElo = currentElo;
-
-                // Win/loss ratios vs opponents
-                for (const opp of oppPlayers) {
-                    if (!s.winLossRatios[opp]) s.winLossRatios[opp] = { wins: 0, losses: 0 };
-                    if (playerWasWinner) s.winLossRatios[opp].wins++;
-                    else s.winLossRatios[opp].losses++;
-                    if (!s.eloGainsAndLosses[opp]) s.eloGainsAndLosses[opp] = 0;
-                    const perOpponentDelta = eloDelta / oppPlayers.length;
-                    if (playerWasWinner) s.eloGainsAndLosses[opp] += perOpponentDelta;
-                    else s.eloGainsAndLosses[opp] -= perOpponentDelta;
-                }
-
-                // Win/loss ratios with teammates
-                for (const teammate of teamPlayers) {
-                    if (teammate === playerId) continue;
-                    if (!s.winLossRatiosWithTeammates[teammate]) s.winLossRatiosWithTeammates[teammate] = { wins: 0, losses: 0 };
-                    if (playerWasWinner) s.winLossRatiosWithTeammates[teammate].wins++;
-                    else s.winLossRatiosWithTeammates[teammate].losses++;
-                }
-                // Daily ELO change
-                if (isToday) {
-                    let eloAtStart = s.eloAtStartOfDay;
-                    if (playerWasWinner) eloAtStart -= eloDelta;
-                    else eloAtStart += eloDelta;
-                    s.eloAtStartOfDay = eloAtStart;
-                }
-                // Goal stats
-                if (teamGoals !== undefined && oppGoals !== undefined) {
-                    s.goalStats.goalsFor += teamGoals;
-                    s.goalStats.goalsAgainst += oppGoals;
-                    const key = `${teamGoals}:${oppGoals}`;
-                    s.goalStats.resultHistogram[key] = (s.goalStats.resultHistogram[key] || 0) + 1;
-                }
-                // Golden ratio
-                if (playerWasWinner && oppGoals === MAX_GOALS-1) s.goldenCounts.won54++;
-                else if (!playerWasWinner && teamGoals === MAX_GOALS-1) s.goldenCounts.lost45++;
-                // Comeback percentage
-                if (hasGoalLog) {
-                    let teamAGoals = 0, teamBGoals = 0, fellBehind = false;
-                    for (const goal of match.goalLog) {
-                        if (goal.team === 'red') teamAGoals++;
-                        else if (goal.team === 'blue') teamBGoals++;
-                        if (team === 'A' && teamAGoals < teamBGoals) fellBehind = true;
-                        if (team === 'B' && teamBGoals < teamAGoals) fellBehind = true;
-                    }
-                    if (fellBehind) {
-                        s.comebackCounts.games++;
-                        if (playerWasWinner) s.comebackCounts.wins++;
-                    }
-                }
-                // Avg time between goals
-                if (hasGoalLog) {
-                    let matchDuration = Math.max(...match.goalLog.map(g => g.timestamp));
-                    s.avgTimeBetweenGoals.totalTimePlayed += matchDuration;
-                    s.avgTimeBetweenGoals.totalTeamGoals += match.goalLog.filter(g => g.team === (team === 'A' ? 'red' : 'blue')).length;
-                    s.avgTimeBetweenGoals.totalOpponentGoals += match.goalLog.filter(g => g.team === (team === 'A' ? 'blue' : 'red')).length;
-                }
-                // Inline streak calculations
-                const result = playerWasWinner ? 'win' : 'loss';
-                if (s.streakType === null) {
-                    s.streakType = result;
-                    s.streakLength = 1;
-                } else if (s.streakType === result) {
-                    s.streakLength++;
-                } else {
-                    s.streakType = result;
-                    s.streakLength = 1;
-                }
-                s.currentStreak = { type: s.streakType, length: s.streakLength };
-                // Longest streaks
-                if (result === 'win') {
-                    s.currentWinStreak++;
-                    s.currentLossStreak = 0;
-                    if (s.currentWinStreak > s.longestWinStreak) s.longestWinStreak = s.currentWinStreak;
-                } else {
-                    s.currentLossStreak++;
-                    s.currentWinStreak = 0;
-                    if (s.currentLossStreak > s.longestLossStreak) s.longestLossStreak = s.currentLossStreak;
-                }
-                s.longestStreaks = { longestWinStreak: s.longestWinStreak, longestLossStreak: s.longestLossStreak };
-                // Streakyness
-                if (s.lastResult !== null && s.lastResult === result) s.consecutiveSame++;
-                s.lastResult = result;
-                if (result === 'win') s.winCount++;
-                else s.lossCount++;
+            // Win/loss ratios vs opponents
+            for (const opp of oppPlayers) {
+                if (!s.winLossRatios[opp]) s.winLossRatios[opp] = { wins: 0, losses: 0 };
+                if (playerWasWinner) s.winLossRatios[opp].wins++;
+                else s.winLossRatios[opp].losses++;
+                if (!s.eloGainsAndLosses[opp]) s.eloGainsAndLosses[opp] = 0;
+                const perOpponentDelta = eloDelta / oppPlayers.length;
+                if (playerWasWinner) s.eloGainsAndLosses[opp] += perOpponentDelta;
+                else s.eloGainsAndLosses[opp] -= perOpponentDelta;
             }
+
+            // Win/loss ratios with teammates
+            for (const teammate of teamPlayers) {
+                if (teammate === playerId) continue;
+                if (!s.winLossRatiosWithTeammates[teammate]) s.winLossRatiosWithTeammates[teammate] = { wins: 0, losses: 0 };
+                if (playerWasWinner) s.winLossRatiosWithTeammates[teammate].wins++;
+                else s.winLossRatiosWithTeammates[teammate].losses++;
+            }
+            
+            // Daily ELO change - track the first match of today we encounter (going backwards in time)
+            if (isToday) {
+                // Since we're iterating oldest-to-newest, this is the elo BEFORE this match
+                // We want to capture the elo at the START of the day (before the first match today)
+                let eloBeforeThisMatch = currentElo;
+                if (playerWasWinner) eloBeforeThisMatch -= eloDelta;
+                else eloBeforeThisMatch += eloDelta;
+                // Keep updating as we go through today's matches (will end up with elo before first match)
+                s.eloAtStartOfDay = eloBeforeThisMatch;
+            }
+            
+            // Goal stats
+            if (teamGoals !== undefined && oppGoals !== undefined) {
+                s.goalStats.goalsFor += teamGoals;
+                s.goalStats.goalsAgainst += oppGoals;
+                const key = `${teamGoals}:${oppGoals}`;
+                s.goalStats.resultHistogram[key] = (s.goalStats.resultHistogram[key] || 0) + 1;
+            }
+            
+            // Golden ratio
+            if (playerWasWinner && oppGoals === MAX_GOALS-1) s.goldenCounts.won54++;
+            else if (!playerWasWinner && teamGoals === MAX_GOALS-1) s.goldenCounts.lost45++;
+            
+            // Comeback percentage
+            if (hasGoalLog) {
+                let teamAGoals = 0, teamBGoals = 0, fellBehind = false;
+                for (const goal of match.goalLog) {
+                    if (goal.team === 'red') teamAGoals++;
+                    else if (goal.team === 'blue') teamBGoals++;
+                    if (team === 'A' && teamAGoals < teamBGoals) fellBehind = true;
+                    if (team === 'B' && teamBGoals < teamAGoals) fellBehind = true;
+                }
+                if (fellBehind) {
+                    s.comebackCounts.games++;
+                    if (playerWasWinner) s.comebackCounts.wins++;
+                }
+            }
+            
+            // Avg time between goals
+            if (hasGoalLog) {
+                let matchDuration = Math.max(...match.goalLog.map(g => g.timestamp));
+                s.avgTimeBetweenGoals.totalTimePlayed += matchDuration;
+                s.avgTimeBetweenGoals.totalTeamGoals += match.goalLog.filter(g => g.team === (team === 'A' ? 'red' : 'blue')).length;
+                s.avgTimeBetweenGoals.totalOpponentGoals += match.goalLog.filter(g => g.team === (team === 'A' ? 'blue' : 'red')).length;
+            }
+            
+            // Inline streak calculations
+            const result = playerWasWinner ? 'win' : 'loss';
+            if (s.streakType === null) {
+                s.streakType = result;
+                s.streakLength = 1;
+            } else if (s.streakType === result) {
+                s.streakLength++;
+            } else {
+                s.streakType = result;
+                s.streakLength = 1;
+            }
+            s.currentStreak = { type: s.streakType, length: s.streakLength };
+            
+            // Longest streaks
+            if (result === 'win') {
+                s.currentWinStreak++;
+                s.currentLossStreak = 0;
+                if (s.currentWinStreak > s.longestWinStreak) s.longestWinStreak = s.currentWinStreak;
+            } else {
+                s.currentLossStreak++;
+                s.currentWinStreak = 0;
+                if (s.currentLossStreak > s.longestLossStreak) s.longestLossStreak = s.currentLossStreak;
+            }
+            s.longestStreaks = { longestWinStreak: s.longestWinStreak, longestLossStreak: s.longestLossStreak };
+            
+            // Streakyness
+            if (s.lastResult !== null && s.lastResult === result) s.consecutiveSame++;
+            s.lastResult = result;
+            if (result === 'win') s.winCount++;
+            else s.lossCount++;
         }
     }
 
     // Finalize stats for each player
     for (const playerName of players) {
         const s = stats[playerName];
-        // Daily ELO change
-        s.dailyEloChange = 1500 - s.eloAtStartOfDay;
+        // Daily ELO change - current elo is the last point in trajectory
+        const currentElo = s.eloTrajectory.length > 0 ? s.eloTrajectory[s.eloTrajectory.length - 1].elo : 1500;
+        s.dailyEloChange = currentElo - s.eloAtStartOfDay;
         // Streakyness
         const n = s.winCount + s.lossCount;
         if (n >= 2) {

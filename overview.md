@@ -72,6 +72,18 @@ The app is currently functional, with real-time updates via Firestore, a modern 
 - Centralized data/state management
 - Easily supports new analytics, UI components, or data sources
 
+## Testing
+- Test files located in `test/` directory
+- Validation utilities in `src/utils/player-stats-validator.js`
+- Run tests with `npm run test:stats`
+- Comprehensive validation for batch statistics computation
+
+## Performance Optimizations
+- **Batch Statistics Computation** (`src/player-stats-batch.js`): Computes all player stats in a single pass through match history
+  - Replaces 12+ individual stat functions with one optimized function
+  - O(N × M) complexity instead of O(N × M × S) where S ≈ 12
+  - See `BATCH_STATS.md` for implementation details
+
 ---
 
 This document should be updated as the codebase evolves, especially when refactoring or adding major features.
