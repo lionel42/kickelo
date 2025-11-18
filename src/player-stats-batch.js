@@ -1,4 +1,4 @@
-import { MAX_GOALS, STARTING_ELO } from "./constants.js";
+import { MAX_GOALS, STARTING_ELO, INACTIVE_THRESHOLD_DAYS } from "./constants.js";
 
 /**
  * Computes all statistics for all players present in a list of matches.
@@ -54,7 +54,8 @@ export function computeAllPlayerStats(matches) {
             goldenRatio: null,
             goldenCounts: { won54: 0, lost45: 0 },
             comebackCounts: { games: 0, wins: 0 },
-            avgTimeBetweenGoals: { totalTimePlayed: 0, totalTeamGoals: 0, totalOpponentGoals: 0 }
+            avgTimeBetweenGoals: { totalTimePlayed: 0, totalTeamGoals: 0, totalOpponentGoals: 0 },
+            lastPlayed: null  // Will be set to the most recent match timestamp
         };
     }
 
@@ -93,6 +94,11 @@ export function computeAllPlayerStats(matches) {
             else currentElo -= eloDelta;
             s.eloTrajectory.push({ elo: Math.round(currentElo), timestamp: match.timestamp });
             if (Math.round(currentElo) > s.highestElo) s.highestElo = Math.round(currentElo);
+
+            // Track last played timestamp (will end up with the newest match since we process oldest->newest)
+            if (!s.lastPlayed || match.timestamp > s.lastPlayed) {
+                s.lastPlayed = match.timestamp;
+            }
 
             // Win/loss ratios vs opponents
             for (const opp of oppPlayers) {
@@ -235,6 +241,12 @@ export function computeAllPlayerStats(matches) {
             avgTimePerTeamGoal: s.avgTimeBetweenGoals.totalTeamGoals > 0 ? s.avgTimeBetweenGoals.totalTimePlayed / s.avgTimeBetweenGoals.totalTeamGoals : null,
             avgTimePerOpponentGoal: s.avgTimeBetweenGoals.totalOpponentGoals > 0 ? s.avgTimeBetweenGoals.totalTimePlayed / s.avgTimeBetweenGoals.totalOpponentGoals : null
         };
+        
+        // Determine if player is active (played within last 2 weeks)
+        const inactiveThresholdMs = INACTIVE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
+        const activityCutoff = Date.now() - inactiveThresholdMs;
+        s.isActive = s.lastPlayed && s.lastPlayed >= activityCutoff;
+        
         // Remove helper fields
         delete s.streakType;
         delete s.streakLength;

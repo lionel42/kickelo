@@ -299,7 +299,13 @@
     </div>
   </div>
 
-  <h2>Leaderboard</h2>
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+    <h2 style="margin: 0;">Leaderboard</h2>
+    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9em;">
+      <input type="checkbox" id="showInactiveToggle" style="cursor: pointer;">
+      <span>Show inactive players</span>
+    </label>
+  </div>
   <ul id="leaderboard" class="shared-list"></ul>
 
   <!-- Display recent matches -->

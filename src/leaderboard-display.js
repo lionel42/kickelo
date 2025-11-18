@@ -4,9 +4,19 @@ import { leaderboardList } from './dom-elements.js';
 import { getCachedStats, getAllCachedStats } from './stats-cache-service.js';
 
 let onPlayerClickCallback = null;
+let showInactivePlayers = false;  // Default: hide inactive players
 
 export function setOnPlayerClick(callback) {
     onPlayerClickCallback = callback;
+}
+
+export function setShowInactivePlayers(show) {
+    showInactivePlayers = show;
+    updateLeaderboardDisplay();
+}
+
+export function getShowInactivePlayers() {
+    return showInactivePlayers;
 }
 
 // The main function to render the leaderboard from the local 'allPlayers' array
@@ -25,7 +35,22 @@ async function updateLeaderboardDisplay() {
     // Get all cached stats at once - much more efficient
     const allStats = getAllCachedStats();
 
-    sortedPlayers.forEach((player) => {
+    // Filter out inactive players if needed
+    const filteredPlayers = showInactivePlayers 
+        ? sortedPlayers 
+        : sortedPlayers.filter(player => {
+            const stats = allStats[player.name];
+            return !stats || stats.isActive;  // Show if no stats or if active
+        });
+
+    if (filteredPlayers.length === 0) {
+        leaderboardList.innerHTML = showInactivePlayers 
+            ? "<li>No players found.</li>"
+            : "<li>No active players found.</li>";
+        return;
+    }
+
+    filteredPlayers.forEach((player) => {
         const li = document.createElement("li");
 
         const playerInfoSpan = document.createElement('span');
@@ -100,10 +125,19 @@ async function updateLeaderboardDisplay() {
  * Initializes the leaderboard. Call this once when the app starts.
  */
 export function initializeLeaderboardDisplay() {
+    // Set up the inactive players toggle
+    const toggleCheckbox = document.getElementById('showInactiveToggle');
+    if (toggleCheckbox) {
+        toggleCheckbox.checked = showInactivePlayers;
+        toggleCheckbox.addEventListener('change', (e) => {
+            setShowInactivePlayers(e.target.checked);
+        });
+    }
 
     // Then, listen for the custom events to re-render
     window.addEventListener('matches-updated', updateLeaderboardDisplay);
     window.addEventListener('players-updated', updateLeaderboardDisplay);
+    window.addEventListener('stats-cache-updated', updateLeaderboardDisplay);
 
     // Perform an initial render in case data is already available from cache
     updateLeaderboardDisplay();
