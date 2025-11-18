@@ -4,6 +4,7 @@
  */
 
 import { computeAllPlayerStats } from '../player-stats-batch.js';
+import { STARTING_ELO } from '../constants.js';
 
 /**
  * Validates the output structure and data integrity
@@ -163,7 +164,7 @@ export function printDetailedStats(stats, playerName) {
     console.log(`  Streakyness: ${s.streakyness.score.toFixed(2)}`);
     
     console.log(`\nElo:`);
-    const currentElo = s.eloTrajectory.length > 0 ? s.eloTrajectory[s.eloTrajectory.length - 1].elo : 1500;
+    const currentElo = s.eloTrajectory.length > 0 ? s.eloTrajectory[s.eloTrajectory.length - 1].elo : STARTING_ELO;
     console.log(`  Current: ${currentElo}`);
     console.log(`  Highest: ${s.highestElo}`);
     console.log(`  Daily Change: ${s.dailyEloChange > 0 ? '+' : ''}${s.dailyEloChange}`);

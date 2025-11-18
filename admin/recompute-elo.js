@@ -10,12 +10,13 @@ admin.initializeApp({
 
 const db = admin.firestore();
 
-// ELO logic
-const K = 40;
-const DEFAULT_ELO = 1500;
+// ELO configuration constants (matching src/constants.js)
+const ELO_K_FACTOR = 40;
+const STARTING_ELO = 1500;
+const ELO_RATING_SCALE = 400;
 
 function expected(ratingA, ratingB) {
-  return 1 / (1 + Math.pow(10, (ratingB - ratingA) / 400));
+  return 1 / (1 + Math.pow(10, (ratingB - ratingA) / ELO_RATING_SCALE));
 }
 
 function updateRatings(team1, team2, winnerIndex, eloMap) {
@@ -26,7 +27,7 @@ function updateRatings(team1, team2, winnerIndex, eloMap) {
 
   const expectedA = expected(avg1, avg2);
 
-  const delta = Math.round(K * (scoreA - expectedA));
+  const delta = Math.round(ELO_K_FACTOR * (scoreA - expectedA));
 
   team1.forEach(p => {
     eloMap[p].elo += delta;
@@ -63,9 +64,9 @@ async function recomputeElo() {
       console.warn("Skipping invalid match:", match);
       continue;
     }
-    elo[team1[0]] = elo[team1[0]] || { elo: DEFAULT_ELO, games: 0 };
+    elo[team1[0]] = elo[team1[0]] || { elo: STARTING_ELO, games: 0 };
     [...team1, ...team2].forEach(player => {
-      if (!elo[player]) elo[player] = { elo: DEFAULT_ELO, games: 0 };
+      if (!elo[player]) elo[player] = { elo: STARTING_ELO, games: 0 };
     });
     // console.log(elo)
     const eloDelta = updateRatings(team1, team2, winner, elo);

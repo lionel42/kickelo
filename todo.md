@@ -15,3 +15,13 @@
   - [ ] Win X games in a single day
   - [ ] Get to the podium / top of the leaderboard
   - [ ] Play games with X different team-mates
+
+- [ ] Add status emojis
+  - [x] 🔥 (with number) for win streaks
+  - [ ] 🧯 for one game for extinguishing a win streak
+  - [ ] ⛰ for highest ELO achieved (above starting ELO)
+  - [ ] 🐍 (with number) for alternatingly winning / loosing at least 5 games
+  - [ ] 🦏 for winning 5:0
+  - [ ] ? for winning against a much higher rated team
+  - [ ] ? 
+  - [ ] 🐦‍🔥 (phoenix) for loosing lots of ELO, then winning it back

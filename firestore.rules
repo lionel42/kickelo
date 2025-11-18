@@ -25,6 +25,7 @@ service cloud.firestore {
 
       // CREATE: A new player can be created by any signed-in user,
       // but we enforce that they start with the default ELO and game count.
+      // Note: STARTING_ELO = 1500 (defined in src/constants.js)
       allow create: if isSignedIn()
                     && request.resource.data.name == playerName
                     && request.resource.data.elo == 1500

@@ -3,6 +3,12 @@ import { isDataReady as isMatchesDataReady, allMatches } from "./match-data-serv
 import { allPlayers } from "./player-data-service.js";
 import { MAX_GOALS } from "./constants.js";
 
+/**
+ * NOTE: For performance-critical scenarios, consider using computeAllPlayerStats
+ * from player-stats-batch.js which computes all stats in a single pass.
+ * See BATCH_STATS.md for details.
+ */
+
 function getPlayerInfo(playerName) {
     // Find the player in the centrally managed 'allPlayers' array.
     const player = allPlayers.find(p => p.id === playerName);

@@ -1,4 +1,4 @@
-import { MAX_GOALS } from "./constants.js";
+import { MAX_GOALS, STARTING_ELO } from "./constants.js";
 
 /**
  * Computes all statistics for all players present in a list of matches.
@@ -55,7 +55,7 @@ export function computeAllPlayerStats(matches) {
             goldenCounts: { won54: 0, lost45: 0 },
             comebackCounts: { games: 0, wins: 0 },
             avgTimeBetweenGoals: { totalTimePlayed: 0, totalTeamGoals: 0, totalOpponentGoals: 0 },
-            eloAtStartOfDay: 1500
+            eloAtStartOfDay: STARTING_ELO
         };
     }
 
@@ -83,7 +83,7 @@ export function computeAllPlayerStats(matches) {
             const oppGoals = isTeamA ? match.goalsB : match.goalsA;
             
             // ELO trajectory
-            let currentElo = s.eloTrajectory.length > 0 ? s.eloTrajectory[s.eloTrajectory.length - 1].elo : 1500;
+            let currentElo = s.eloTrajectory.length > 0 ? s.eloTrajectory[s.eloTrajectory.length - 1].elo : STARTING_ELO;
             const playerWasWinner = (team === match.winner);
             const eloDelta = match.eloDelta || 0;
             if (playerWasWinner) currentElo += eloDelta;
@@ -193,7 +193,7 @@ export function computeAllPlayerStats(matches) {
     for (const playerName of players) {
         const s = stats[playerName];
         // Daily ELO change - current elo is the last point in trajectory
-        const currentElo = s.eloTrajectory.length > 0 ? s.eloTrajectory[s.eloTrajectory.length - 1].elo : 1500;
+        const currentElo = s.eloTrajectory.length > 0 ? s.eloTrajectory[s.eloTrajectory.length - 1].elo : STARTING_ELO;
         s.dailyEloChange = currentElo - s.eloAtStartOfDay;
         // Streakyness
         const n = s.winCount + s.lossCount;
