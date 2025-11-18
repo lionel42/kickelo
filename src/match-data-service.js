@@ -1,6 +1,5 @@
 import { db, collection, onSnapshot } from './firebase-service.js';
-import {computeAllPlayerStats} from "./player-stats-batch.js";
-import {allPlayers} from "./player-data-service.js";
+import { updateStatsCache } from './stats-cache-service.js';
 
 // This array will hold all match data, kept in sync by the listener.
 let allMatches = [];
@@ -46,13 +45,13 @@ export function initializeMatchesData() {
         allMatches = matchesData;
         isDataReady = true;
 
+        // Update the stats cache with all player statistics
+        // This computes all stats in a single efficient pass
+        updateStatsCache(allMatches);
+
         // Dispatch a custom event to let your UI components know
         // that new data is available and they should re-render.
         window.dispatchEvent(new CustomEvent('matches-updated'));
-
-        // console.debug("allPlayers", allPlayers)
-        // let players = ["a", "b", "c", "d"]
-        // computeAllPlayerStats(allMatches)
 
     }, (error) => {
         console.error("Error listening to matches collection:", error);

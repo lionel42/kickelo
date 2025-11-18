@@ -1,16 +1,9 @@
 import {
-    getEloTrajectory,
-    getWinLossRatios,
-    getWinLossRatiosWithTeammates,
-    getEloGainsAndLosses,
-    getLongestStreaks,
-    getStreakyness,
-    getGoalStats,
     getHighestElo,
     getGoldenRatio,
     getComebackPercentage,
-    getAverageTimeBetweenGoals,
 } from './player-stats-service.js';
+import { getCachedStats, isCacheReady } from './stats-cache-service.js';
 import { allMatches } from './match-data-service.js';
 import { MAX_GOALS } from './constants.js';
 import Chart from "chart.js/auto";
@@ -416,24 +409,41 @@ class PlayerStatsComponent extends HTMLElement {
         this.shadowRoot.getElementById('playerStatsName').textContent = this.playerName;
 
         try {
-            const [
-                eloTrajectory,
-                winLossRatios,
-                teammateRatios,
-                eloGainsLosses,
-                longestStreaks,
-                streakyness,
-                goalStats
-            ] = [
-                getEloTrajectory(this.playerName),
-                getWinLossRatios(this.playerName),
-                getWinLossRatiosWithTeammates(this.playerName),
-                getEloGainsAndLosses(this.playerName),
-                getLongestStreaks(this.playerName),
-                getStreakyness(this.playerName),
-                getGoalStats(this.playerName)
-            ];
-            const goalTimingStats = getAverageTimeBetweenGoals(this.playerName);
+            // Check if stats cache is ready
+            if (!isCacheReady()) {
+                console.warn('Stats cache not ready yet. Waiting...');
+                // Wait for stats-cache-updated event
+                const waitForCache = new Promise((resolve) => {
+                    const handler = () => {
+                        window.removeEventListener('stats-cache-updated', handler);
+                        resolve();
+                    };
+                    window.addEventListener('stats-cache-updated', handler);
+                    // Timeout after 5 seconds
+                    setTimeout(() => {
+                        window.removeEventListener('stats-cache-updated', handler);
+                        resolve();
+                    }, 5000);
+                });
+                await waitForCache;
+            }
+
+            // Get all stats from cache in one operation
+            const cachedStats = getCachedStats(this.playerName);
+            
+            if (!cachedStats) {
+                throw new Error(`No stats found for player: ${this.playerName}`);
+            }
+
+            // Extract the stats we need from the cache
+            const eloTrajectory = cachedStats.eloTrajectory;
+            const winLossRatios = cachedStats.winLossRatios;
+            const teammateRatios = cachedStats.winLossRatiosWithTeammates;
+            const eloGainsLosses = cachedStats.eloGainsAndLosses;
+            const longestStreaks = cachedStats.longestStreaks;
+            const streakyness = cachedStats.streakyness;
+            const goalStats = cachedStats.goalStats;
+            const goalTimingStats = cachedStats.avgTimeBetweenGoals;
 
             this.renderEloGraph(eloTrajectory);
             this.renderRecentMatches();

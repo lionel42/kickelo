@@ -1,7 +1,7 @@
 // Import from the new player data service instead of firebase
 import { allPlayers} from './player-data-service.js';
 import { leaderboardList } from './dom-elements.js';
-import { getCurrentStreak, getDailyEloChanges } from './player-stats-service.js';
+import { getCachedStats, getAllCachedStats } from './stats-cache-service.js';
 
 let onPlayerClickCallback = null;
 
@@ -22,8 +22,8 @@ async function updateLeaderboardDisplay() {
     // Sort players by ELO from the local array
     const sortedPlayers = [...allPlayers].sort((a, b) => b.elo - a.elo);
 
-    // Fetch all daily changes once to be efficient
-    const dailyChanges = await getDailyEloChanges();
+    // Get all cached stats at once - much more efficient
+    const allStats = getAllCachedStats();
 
     sortedPlayers.forEach((player) => {
         const li = document.createElement("li");
@@ -42,28 +42,33 @@ async function updateLeaderboardDisplay() {
         indicatorsContainer.style.alignItems = 'center';
         indicatorsContainer.style.gap = '15px';
 
-        // Streak Indicator
-        const streak = getCurrentStreak(player.name);
-        if (streak.type === 'win' && streak.length >= 3) {
-            const streakSpan = document.createElement('span');
-            streakSpan.textContent = `🔥 ${streak.length}`;
-            streakSpan.style.color = '#ffac33';
-            indicatorsContainer.appendChild(streakSpan);
-        }
-
-        // Daily ELO Change Indicator
-        const dailyChange = dailyChanges[player.name];
-        if (dailyChange) {
-            const changeSpan = document.createElement('span');
-            if (dailyChange > 0) {
-                changeSpan.textContent = `▲ ${Math.round(dailyChange)}`;
-                changeSpan.style.color = '#86e086';
-            } else if (dailyChange < 0) {
-                changeSpan.textContent = `▼ ${Math.round(Math.abs(dailyChange))}`;
-                changeSpan.style.color = '#ff7b7b';
+        // Get player stats from cache
+        const playerStats = allStats[player.name];
+        
+        if (playerStats) {
+            // Streak Indicator
+            const streak = playerStats.currentStreak;
+            if (streak && streak.type === 'win' && streak.length >= 3) {
+                const streakSpan = document.createElement('span');
+                streakSpan.textContent = `🔥 ${streak.length}`;
+                streakSpan.style.color = '#ffac33';
+                indicatorsContainer.appendChild(streakSpan);
             }
-            if (changeSpan.textContent) {
-                indicatorsContainer.appendChild(changeSpan);
+
+            // Daily ELO Change Indicator
+            const dailyChange = playerStats.dailyEloChange;
+            if (dailyChange) {
+                const changeSpan = document.createElement('span');
+                if (dailyChange > 0) {
+                    changeSpan.textContent = `▲ ${Math.round(dailyChange)}`;
+                    changeSpan.style.color = '#86e086';
+                } else if (dailyChange < 0) {
+                    changeSpan.textContent = `▼ ${Math.round(Math.abs(dailyChange))}`;
+                    changeSpan.style.color = '#ff7b7b';
+                }
+                if (changeSpan.textContent) {
+                    indicatorsContainer.appendChild(changeSpan);
+                }
             }
         }
 
