@@ -826,7 +826,7 @@ th[role=columnheader]:not(.no-sort):hover:after {
 #leaderboardOptions {
   max-height: 200px;
   overflow: hidden;
-  transition: max-height 0.3s ease, opacity 0.3s ease, margin-top 0.3s ease, margin-bottom 0.3s ease, padding-top 0.3s ease, padding-bottom 0.3s ease;
+  transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out, margin-top 0.3s ease-in-out, margin-bottom 0.3s ease-in-out, padding-top 0.3s ease-in-out, padding-bottom 0.3s ease-in-out;
   opacity: 1;
   margin-top: 10px;
 }
