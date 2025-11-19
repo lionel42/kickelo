@@ -8,6 +8,16 @@ let onPlayerClickCallback = null;
 let showInactivePlayers = false;  // Default: hide inactive players
 let sortBy = 'elo';  // Default sort by ELO rating
 
+const DEFAULT_BADGE_VALUE_COLOR = 'var(--text-color-primary, #2d2d2d)';
+const BADGE_VALUE_COLORS = {
+    '🔥': '#F99D37', // streaks
+    '🐦‍🔥': '#f97316', // phoenix
+    '🌊': '#779ae7ff', // streak extinguisher
+    '🐍': '#8be47aff', // snake
+    '🐕': '#ddb494ff', // underdog
+    '🦏': '#97afd1ff', // rhino/shutout
+};
+
 export function setOnPlayerClick(callback) {
     onPlayerClickCallback = callback;
 }
@@ -182,13 +192,18 @@ function getStatusBadges(stats) {
     const badges = [];
     const currentElo = getCurrentElo(stats);
     const formatBadge = (emoji, value, threshold) => {
-        if (typeof value === 'number' && typeof threshold === 'number') {
-            return value > threshold ? { emoji, value } : { emoji };
+        const badge = { emoji };
+        const includeValue = typeof value === 'number' && (
+            (typeof threshold === 'number' && value > threshold) ||
+            threshold === undefined
+        );
+
+        if (includeValue) {
+            badge.value = value;
+            badge.valueColor = BADGE_VALUE_COLORS[emoji];
         }
-        if (typeof value === 'number' && threshold === undefined) {
-            return { emoji, value };
-        }
-        return { emoji };
+
+        return badge;
     };
 
     const events = stats.statusEvents || {};
@@ -209,7 +224,7 @@ function getStatusBadges(stats) {
         badges.push(formatBadge('🐍', stats.currentAlternatingRun, 7));
     }
     if (stats.phoenix?.isActive) {
-        badges.push(formatBadge('🐦‍🔥', Math.round(stats.phoenix.recoveredAmount), 0));
+        badges.push({emoji: '🐦‍🔥'});
     }
     if (stats.currentPositiveDayRun && stats.currentPositiveDayRun >= 3) {
         badges.push(formatBadge('🧗', stats.currentPositiveDayRun, 3));
@@ -297,7 +312,17 @@ async function updateLeaderboardDisplay() {
                 badgesContainer.style.alignItems = 'center';
                 statusBadges.forEach((badge) => {
                     const badgeSpan = document.createElement('span');
-                    badgeSpan.textContent = badge.value !== undefined ? `${badge.emoji} ${badge.value}` : badge.emoji;
+                    badgeSpan.style.display = 'inline-flex';
+                    badgeSpan.style.alignItems = 'baseline';
+                    badgeSpan.append(document.createTextNode(badge.emoji));
+
+                    if (badge.value !== undefined) {
+                        const valueSpan = document.createElement('span');
+                        valueSpan.textContent = badge.value;
+                        valueSpan.style.marginLeft = '2px';
+                        valueSpan.style.color = badge.valueColor || DEFAULT_BADGE_VALUE_COLOR;
+                        badgeSpan.appendChild(valueSpan);
+                    }
                     badgesContainer.appendChild(badgeSpan);
                 });
                 indicatorsContainer.appendChild(badgesContainer);
