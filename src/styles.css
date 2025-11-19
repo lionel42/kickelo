@@ -133,6 +133,13 @@ select {
   -moz-appearance: none;
 }
 
+#sortBySelect {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+}
+
+
 .blue_select {
   border: 2px solid #6cabc2;
   background-color: rgba(49, 76, 86, 0.8);
@@ -148,7 +155,7 @@ select {
 .invisible_swap_button {
   position: absolute;
   transform: translate(-50%, -50%);
-  z-index: 10;
+  /* z-index: 10; */
   background: transparent;
   border: none;
   box-shadow: none;
@@ -156,13 +163,13 @@ select {
   cursor: pointer;
   top: 0;
   left: 0;
-  width: 10%;
-  height: 35%;
+  /* width: 10%; */
+  /* height: 35%; */
 }
 
-.invisible_swap_button:hover {
+/* .invisible_swap_button:hover {
   background-color: rgba(111, 111, 111, 0.11);
-}
+} */
 
 .score_select{
   width: 12% !important;
@@ -198,6 +205,19 @@ button {
 
 button:hover {
   background-color: #6f6f6f;
+}
+
+.sortBySelect {
+  display: block;
+  margin-left: 10px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid #666666;
+  background-color: #454545;
+  color: #eee;
+  cursor: pointer;
+  font-size: 14px;
+  width: 100%;
 }
 
 /* Add fade-out and fade-in animations for the heading */
@@ -238,6 +258,7 @@ button:hover {
 /*    transform: translateY(-2px);*/
 /*    box-shadow: 0 4px 8px rgba(0,0,0,0.2);*/
 /*}*/
+
 
 /* Metallic Effects for Top 3 Spots */
 .gold {
@@ -799,4 +820,36 @@ th[role=columnheader]:not(.no-sort):hover:after {
   color: #e0e0e0;
   font-size: 1.1em;
   margin-top: 0.5em;
+}
+
+/* Leaderboard Options Collapsible Panel */
+#leaderboardOptions {
+  max-height: 200px;
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease, margin-top 0.3s ease, margin-bottom 0.3s ease, padding-top 0.3s ease, padding-bottom 0.3s ease;
+  opacity: 1;
+  margin-top: 10px;
+}
+
+#leaderboardOptions.collapsed {
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+#leaderboardOptionsToggle {
+  transition: transform 0.3s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#leaderboardOptionsToggle:hover,
+#leaderboardOptionsToggle:active {
+  background: transparent !important;
+}
+
+#leaderboardOptionsToggle.rotated {
+  transform: rotate(90deg);
 }

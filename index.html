@@ -299,26 +299,26 @@
     </div>
   </div>
 
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+  <div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin-top: 30px; margin-bottom: 10px;">
+    <div></div>
     <h2 style="margin: 0;">Leaderboard</h2>
-    <div style="display: flex; align-items: center; gap: 15px;">
-      <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9em;">
-        <span>Sort by:</span>
-        <select id="sortBySelect" style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color); background-color: var(--card-background-color); color: var(--text-color-primary); cursor: pointer;">
-          <option value="elo">ELO Rating</option>
-          <option value="totalGames">Total Games</option>
-          <option value="winRate">Win Rate</option>
-          <option value="winStreak">Current Win Streak</option>
-          <option value="dailyChange">Daily Change</option>
-          <option value="highestElo">Highest ELO</option>
-        </select>
-      </label>
-      <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9em;">
-        <input type="checkbox" id="showInactiveToggle" style="cursor: pointer;">
-        <span>Show inactive players</span>
-      </label>
+    <button id="leaderboardOptionsToggle" style="justify-self: end; width: auto; background: none; border: none; font-size: 1.2em; cursor: pointer; padding: 5px; color: #ccc; box-shadow: none; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center;">⚙️</button>
+  </div>
+  <div class="boxed collapsed" id="leaderboardOptions">
+    <button id="showInactiveToggle" class="button">Show inactive players</button>
+    <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+      <span style="white-space: nowrap;">Sort by:</span>
+      <select id="sortBySelect" style="flex: 1; width: 100%;">
+        <option value="elo">ELO Rating</option>
+        <option value="totalGames">Total Games</option>
+        <option value="winRate">Win Rate</option>
+        <option value="winStreak">Current Win Streak</option>
+        <option value="dailyChange">Daily Change</option>
+        <option value="highestElo">Highest ELO</option>
+      </select>
     </div>
   </div>
+
   <ul id="leaderboard" class="shared-list"></ul>
 
   <!-- Display recent matches -->

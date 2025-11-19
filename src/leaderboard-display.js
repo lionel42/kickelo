@@ -33,19 +33,37 @@ export function getSortBy() {
  * Helper function to compute total wins and losses from player stats
  */
 function computeWinsAndLosses(stats) {
-    if (!stats || !stats.winLossRatios) {
+    if (!stats || !stats.eloTrajectory) {
         return { wins: 0, losses: 0, totalGames: 0 };
     }
     
+    // Total games is the length of eloTrajectory (each match = 1 entry)
+    const totalGames = stats.eloTrajectory.length;
+    
+    // We can derive wins from winLossRatios, but we need to be careful:
+    // In a 2v2 match, winLossRatios counts once per opponent (so 2x per match)
+    // We need to count unique matches instead
     let wins = 0;
     let losses = 0;
     
-    for (const opponent in stats.winLossRatios) {
-        wins += stats.winLossRatios[opponent].wins;
-        losses += stats.winLossRatios[opponent].losses;
+    if (stats.winLossRatios) {
+        // Count wins/losses per opponent, then divide by number of opponents per match
+        // Assuming 2v2 matches (2 opponents per match)
+        const opponentsPerMatch = 2;
+        let totalWinEntries = 0;
+        let totalLossEntries = 0;
+        
+        for (const opponent in stats.winLossRatios) {
+            totalWinEntries += stats.winLossRatios[opponent].wins;
+            totalLossEntries += stats.winLossRatios[opponent].losses;
+        }
+        
+        // Each match creates entries for each opponent, so divide by opponents per match
+        wins = totalWinEntries / opponentsPerMatch;
+        losses = totalLossEntries / opponentsPerMatch;
     }
     
-    return { wins, losses, totalGames: wins + losses };
+    return { wins, losses, totalGames };
 }
 
 /**
@@ -141,12 +159,20 @@ async function updateLeaderboardDisplay() {
     });
 
     // Filter out inactive players if needed
-    const filteredPlayers = showInactivePlayers 
+    let filteredPlayers = showInactivePlayers 
         ? sortedPlayers 
         : sortedPlayers.filter(player => {
             const stats = allStats[player.name];
             return !stats || stats.isActive;  // Show if no stats or if active
         });
+
+    // When sorting by daily change, also filter out players with 0 change
+    if (sortBy === 'dailyChange') {
+        filteredPlayers = filteredPlayers.filter(player => {
+            const stats = allStats[player.name];
+            return stats && stats.dailyEloChange && stats.dailyEloChange !== 0;
+        });
+    }
 
     if (filteredPlayers.length === 0) {
         leaderboardList.innerHTML = showInactivePlayers 
@@ -238,12 +264,29 @@ export function initializeLeaderboardDisplay() {
         });
     }
 
-    // Set up the inactive players toggle
-    const toggleCheckbox = document.getElementById('showInactiveToggle');
-    if (toggleCheckbox) {
-        toggleCheckbox.checked = showInactivePlayers;
-        toggleCheckbox.addEventListener('change', (e) => {
-            setShowInactivePlayers(e.target.checked);
+    // Set up the inactive players toggle (now a button)
+    const toggleButton = document.getElementById('showInactiveToggle');
+    if (toggleButton) {
+        // Update button appearance based on state
+        const updateButtonAppearance = () => {
+            if (showInactivePlayers) {
+                toggleButton.textContent = 'Hide inactive players';
+                toggleButton.style.backgroundColor = 'var(--hover-color)';
+                toggleButton.style.color = 'var(--text-color-primary)';
+                toggleButton.style.borderColor = 'var(--gray-light)';
+            } else {
+                toggleButton.textContent = 'Show inactive players';
+                toggleButton.style.backgroundColor = 'var(--card-background-color)';
+                toggleButton.style.color = 'var(--text-color-secondary)';
+                toggleButton.style.borderColor = 'var(--border-color)';
+            }
+        };
+        
+        updateButtonAppearance();
+        
+        toggleButton.addEventListener('click', () => {
+            setShowInactivePlayers(!showInactivePlayers);
+            updateButtonAppearance();
         });
     }
 

@@ -19,9 +19,10 @@
 - [ ] Add status emojis
   - [x] 🔥 (with number) for win streaks
   - [ ] 🧯 for one game for extinguishing a win streak
-  - [ ] ⛰ for highest ELO achieved (above starting ELO)
+  - [ ] ⛰ for highest ELO ever achieved (above starting ELO)
   - [ ] 🐍 (with number) for alternatingly winning / loosing at least 5 games
+  - [ ] 🐕 (underdog) for winning against a much higher rated team
+  - [ ] 🪃 (with number) for a comeback from an X goal deficit (for X>=2) 
   - [ ] 🦏 for winning 5:0
-  - [ ] ? for winning against a much higher rated team
-  - [ ] ? 
+  - [ ] 🧗 (with number) for climbing the leaderboard: Positive ELO for X consecutive days (for X>=3)
   - [ ] 🐦‍🔥 (phoenix) for loosing lots of ELO, then winning it back

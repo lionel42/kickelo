@@ -117,3 +117,10 @@ document.getElementById('football').addEventListener('click', function () {
         football.style.animation = '';
     }, { once: true });
 });
+
+// Leaderboard options toggle
+document.getElementById('leaderboardOptionsToggle').addEventListener('click', function () {
+    const optionsPanel = document.getElementById('leaderboardOptions');
+    optionsPanel.classList.toggle('collapsed');
+    this.classList.toggle('rotated');
+});
