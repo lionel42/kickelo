@@ -73,18 +73,10 @@ function getSortValue(player, stats, sortBy) {
     switch (sortBy) {
         case 'elo':
             return player.elo || 0;
-        case 'totalGames': {
-            if (!stats) return 0;
-            return stats.eloTrajectory ? stats.eloTrajectory.length : 0;
-        }
         case 'winRate': {
             if (!stats) return 0;
             const { wins, totalGames } = computeWinsAndLosses(stats);
             return totalGames > 0 ? wins / totalGames : 0;
-        }
-        case 'winStreak': {
-            if (!stats || !stats.currentStreak) return 0;
-            return stats.currentStreak.type === 'win' ? stats.currentStreak.length : 0;
         }
         case 'dailyChange': {
             if (!stats) return 0;
@@ -93,6 +85,32 @@ function getSortValue(player, stats, sortBy) {
         case 'highestElo': {
             if (!stats) return 0;
             return stats.highestElo || 0;
+        }
+        case 'goldenRatio': {
+            if (!stats) return 0;
+            return stats.goldenRatio || 0;
+        }
+        case 'comebackRate': {
+            if (!stats) return 0;
+            return stats.comebackPercentage || 0;
+        }
+        case 'avgTimeTeam': {
+            if (!stats || !stats.avgTimeBetweenGoals) return 0;
+            // Lower is better, so we negate it for sorting
+            return -(stats.avgTimeBetweenGoals.avgTimePerTeamGoal || 0);
+        }
+        case 'avgTimeOpponent': {
+            if (!stats || !stats.avgTimeBetweenGoals) return 0;
+            // Higher is better, so we don't negate it
+            return stats.avgTimeBetweenGoals.avgTimePerOpponentGoal || 0;
+        }
+        case 'streakiness': {
+            if (!stats || !stats.streakyness) return 0;
+            return stats.streakyness.score || 0;
+        }
+        case 'longestWinStreak': {
+            if (!stats || !stats.longestStreaks) return 0;
+            return stats.longestStreaks.longestWinStreak || 0;
         }
         default:
             return player.elo || 0;
@@ -106,21 +124,12 @@ function getDisplayValue(player, stats, sortBy) {
     switch (sortBy) {
         case 'elo':
             return player.elo;
-        case 'totalGames': {
-            if (!stats) return '0 games';
-            const games = stats.eloTrajectory ? stats.eloTrajectory.length : 0;
-            return `${games} game${games !== 1 ? 's' : ''}`;
-        }
         case 'winRate': {
             if (!stats) return '0%';
             const { wins, totalGames } = computeWinsAndLosses(stats);
             if (totalGames === 0) return '0%';
             const winRate = (wins / totalGames * 100).toFixed(1);
-            return `${winRate}% (${wins}/${totalGames})`;
-        }
-        case 'winStreak': {
-            if (!stats || !stats.currentStreak) return '0';
-            return stats.currentStreak.type === 'win' ? stats.currentStreak.length : 0;
+            return `${winRate}%`;
         }
         case 'dailyChange': {
             if (!stats) return '0';
@@ -130,6 +139,30 @@ function getDisplayValue(player, stats, sortBy) {
         case 'highestElo': {
             if (!stats) return '0';
             return Math.round(stats.highestElo || 0);
+        }
+        case 'goldenRatio': {
+            if (!stats) return '0.00';
+            return (stats.goldenRatio || 0).toFixed(2);
+        }
+        case 'comebackRate': {
+            if (!stats) return '0%';
+            return `${((stats.comebackPercentage || 0) * 100).toFixed(0)}%`;
+        }
+        case 'avgTimeTeam': {
+            if (!stats || !stats.avgTimeBetweenGoals || !stats.avgTimeBetweenGoals.avgTimePerTeamGoal) return 'N/A';
+            return `${(stats.avgTimeBetweenGoals.avgTimePerTeamGoal / 1000).toFixed(1)}s`;
+        }
+        case 'avgTimeOpponent': {
+            if (!stats || !stats.avgTimeBetweenGoals || !stats.avgTimeBetweenGoals.avgTimePerOpponentGoal) return 'N/A';
+            return `${(stats.avgTimeBetweenGoals.avgTimePerOpponentGoal / 1000).toFixed(1)}s`;
+        }
+        case 'streakiness': {
+            if (!stats || !stats.streakyness) return '0.00';
+            return (stats.streakyness.score || 0).toFixed(2);
+        }
+        case 'longestWinStreak': {
+            if (!stats || !stats.longestStreaks) return '0';
+            return stats.longestStreaks.longestWinStreak || 0;
         }
         default:
             return player.elo;

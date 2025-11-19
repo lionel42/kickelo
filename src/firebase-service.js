@@ -36,12 +36,12 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 
-// Use multi-tab IndexedDb persistence.
-// initializeFirestore(app,
-//   {localCache:
-//     persistentLocalCache(/*settings*/{tabManager: persistentMultipleTabManager()})
-//   }
-// );
+Use multi-tab IndexedDb persistence.
+initializeFirestore(app,
+  {localCache:
+    persistentLocalCache(/*settings*/{tabManager: persistentMultipleTabManager()})
+  }
+);
 
 const db = getFirestore(app);
 
