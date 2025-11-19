@@ -303,7 +303,13 @@ export function computeAllPlayerStats(matches) {
         if (dailyEntries.length >= 2) {
             const latest = dailyEntries[dailyEntries.length - 1];
             const previous = dailyEntries[dailyEntries.length - 2];
-            if (latest.delta > 0 && previous.delta < 0 && latest.delta > Math.abs(previous.delta)) {
+            const recoveredToday = latest.day === startOfDayTimestamp;
+            if (
+                recoveredToday &&
+                latest.delta > 0 &&
+                previous.delta < 0 &&
+                latest.delta > Math.abs(previous.delta)
+            ) {
                 phoenix = { isActive: true, recoveredAmount: latest.delta };
             }
         }
