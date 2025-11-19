@@ -95,6 +95,21 @@ function testComputeAllPlayerStats() {
     console.log(`Players in matches: ${[...new Set(matches.flatMap(m => [...m.teamA, ...m.teamB]))].join(', ')}\n`);
     
     const stats = computeAllPlayerStats(matches);
+
+    for (const [playerName, playerStats] of Object.entries(stats)) {
+        if (!playerStats.statusEvents) {
+            throw new Error(`${playerName} missing statusEvents payload`);
+        }
+        if (typeof playerStats.currentAlternatingRun === 'undefined') {
+            throw new Error(`${playerName} missing currentAlternatingRun`);
+        }
+        if (typeof playerStats.currentPositiveDayRun === 'undefined') {
+            throw new Error(`${playerName} missing currentPositiveDayRun`);
+        }
+        if (!playerStats.phoenix || typeof playerStats.phoenix.isActive === 'undefined') {
+            throw new Error(`${playerName} missing phoenix status`);
+        }
+    }
     
     console.log('\n=== Results for each player ===\n');
     

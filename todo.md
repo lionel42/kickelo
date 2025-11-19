@@ -21,8 +21,8 @@
   - [ ] 🧯 for one game for extinguishing a win streak
   - [ ] ⛰ for highest ELO ever achieved (above starting ELO)
   - [ ] 🐍 (with number) for alternatingly winning / loosing at least 5 games
-  - [ ] 🐕 (underdog) for winning against a much higher rated team
+  - [ ] 🐕 (underdog) (with number) for winning against a much higher rated team (at least 100 ELO difference). Number is equal to elo difference // 100
   - [ ] 🪃 (with number) for a comeback from an X goal deficit (for X>=2) 
   - [ ] 🦏 for winning 5:0
   - [ ] 🧗 (with number) for climbing the leaderboard: Positive ELO for X consecutive days (for X>=3)
-  - [ ] 🐦‍🔥 (phoenix) for loosing lots of ELO, then winning it back
+  - [ ] 🐦‍🔥 (phoenix) for winning back all the ELO on a day which was lost on the previous day

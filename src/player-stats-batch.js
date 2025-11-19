@@ -1,5 +1,11 @@
 import { MAX_GOALS, STARTING_ELO, INACTIVE_THRESHOLD_DAYS } from "./constants.js";
 
+function getDayKey(timestamp) {
+    const day = new Date(timestamp);
+    day.setHours(0, 0, 0, 0);
+    return day.getTime();
+}
+
 /**
  * Computes all statistics for all players present in a list of matches.
  * Matches must be sorted by timestamp (newest first, as they come from Firestore).
@@ -55,7 +61,19 @@ export function computeAllPlayerStats(matches) {
             goldenCounts: { won54: 0, lost45: 0 },
             comebackCounts: { games: 0, wins: 0 },
             avgTimeBetweenGoals: { totalTimePlayed: 0, totalTeamGoals: 0, totalOpponentGoals: 0 },
-            lastPlayed: null  // Will be set to the most recent match timestamp
+            lastPlayed: null,  // Will be set to the most recent match timestamp
+            statusEvents: {
+                extinguisherCount: 0,
+                underdogPointSum: 0,
+                comebackGoalSum: 0,
+                shutoutCount: 0
+            },
+            dailyDeltas: {},
+            alternatingRunLength: 0,
+            lastAlternatingResult: null,
+            currentAlternatingRun: 0,
+            currentPositiveDayRun: 0,
+            phoenix: { isActive: false, recoveredAmount: 0 }
         };
     }
 
@@ -72,8 +90,60 @@ export function computeAllPlayerStats(matches) {
             continue;
         }
         
-        // Process each player involved in the match
+        const dayKey = getDayKey(match.timestamp);
+        const matchIsToday = match.timestamp >= startOfDayTimestamp;
         const allPlayersInMatch = [...match.teamA, ...match.teamB];
+
+        const playerMeta = {};
+        for (const playerId of allPlayersInMatch) {
+            const playerStats = stats[playerId];
+            if (!playerStats) continue;
+            const lastEloPoint = playerStats.eloTrajectory.length > 0
+                ? playerStats.eloTrajectory[playerStats.eloTrajectory.length - 1].elo
+                : STARTING_ELO;
+            playerMeta[playerId] = {
+                preMatchElo: lastEloPoint,
+                streakType: playerStats.streakType,
+                streakLength: playerStats.streakLength,
+                alternatingRunLength: playerStats.alternatingRunLength || 0,
+                lastAlternatingResult: playerStats.lastAlternatingResult
+            };
+        }
+
+        const teamAAvgElo = match.teamA.length > 0
+            ? match.teamA.reduce((sum, pid) => sum + (playerMeta[pid]?.preMatchElo ?? STARTING_ELO), 0) / match.teamA.length
+            : STARTING_ELO;
+        const teamBAvgElo = match.teamB.length > 0
+            ? match.teamB.reduce((sum, pid) => sum + (playerMeta[pid]?.preMatchElo ?? STARTING_ELO), 0) / match.teamB.length
+            : STARTING_ELO;
+
+        const streakBreaksAgainstA = match.teamB.reduce((count, pid) => {
+            const meta = playerMeta[pid];
+            return count + (meta?.streakType === 'win' && (meta.streakLength || 0) >= 3 ? 1 : 0);
+        }, 0);
+        const streakBreaksAgainstB = match.teamA.reduce((count, pid) => {
+            const meta = playerMeta[pid];
+            return count + (meta?.streakType === 'win' && (meta.streakLength || 0) >= 3 ? 1 : 0);
+        }, 0);
+
+        let underdogPoints = 0;
+        const winningAvg = match.winner === 'A' ? teamAAvgElo : teamBAvgElo;
+        const losingAvg = match.winner === 'A' ? teamBAvgElo : teamAAvgElo;
+        if (!Number.isNaN(winningAvg) && !Number.isNaN(losingAvg)) {
+            const diff = losingAvg - winningAvg;
+            if (diff >= 100) {
+                underdogPoints = Math.floor(diff / 100);
+            }
+        }
+
+        const maxDeficits = computeMaxDeficits(match.goalLog);
+        const comebackDeficit = match.winner === 'A' ? maxDeficits.A : maxDeficits.B;
+        const winningGoals = match.winner === 'A' ? match.goalsA : match.goalsB;
+        const losingGoals = match.winner === 'A' ? match.goalsB : match.goalsA;
+        const isShutoutWin = winningGoals === MAX_GOALS && losingGoals === 0;
+        const winnerOppStreakCount = match.winner === 'A' ? streakBreaksAgainstA : streakBreaksAgainstB;
+
+        // Process each player involved in the match
         for (const playerId of allPlayersInMatch) {
             if (!stats[playerId]) continue;
             const s = stats[playerId];
@@ -94,6 +164,9 @@ export function computeAllPlayerStats(matches) {
             else currentElo -= eloDelta;
             s.eloTrajectory.push({ elo: Math.round(currentElo), timestamp: match.timestamp });
             if (Math.round(currentElo) > s.highestElo) s.highestElo = Math.round(currentElo);
+
+            const perMatchDelta = playerWasWinner ? eloDelta : -eloDelta;
+            s.dailyDeltas[dayKey] = (s.dailyDeltas[dayKey] || 0) + perMatchDelta;
 
             // Track last played timestamp (will end up with the newest match since we process oldest->newest)
             if (!s.lastPlayed || match.timestamp > s.lastPlayed) {
@@ -166,6 +239,17 @@ export function computeAllPlayerStats(matches) {
                 s.streakLength = 1;
             }
             s.currentStreak = { type: s.streakType, length: s.streakLength };
+
+            const previousAltResult = playerMeta[playerId]?.lastAlternatingResult;
+            const previousAltLength = playerMeta[playerId]?.alternatingRunLength || 0;
+            if (previousAltResult === null || previousAltResult === undefined) {
+                s.alternatingRunLength = 1;
+            } else if (previousAltResult !== result) {
+                s.alternatingRunLength = previousAltLength + 1;
+            } else {
+                s.alternatingRunLength = 1;
+            }
+            s.lastAlternatingResult = result;
             
             // Longest streaks
             if (result === 'win') {
@@ -179,6 +263,13 @@ export function computeAllPlayerStats(matches) {
             }
             s.longestStreaks = { longestWinStreak: s.longestWinStreak, longestLossStreak: s.longestLossStreak };
             
+            if (matchIsToday && playerWasWinner) {
+                if (winnerOppStreakCount > 0) s.statusEvents.extinguisherCount += winnerOppStreakCount;
+                if (underdogPoints > 0) s.statusEvents.underdogPointSum += underdogPoints;
+                if (comebackDeficit >= 2) s.statusEvents.comebackGoalSum += comebackDeficit;
+                if (isShutoutWin) s.statusEvents.shutoutCount += 1;
+            }
+
             // Streakyness
             if (s.lastResult !== null && s.lastResult === result) s.consecutiveSame++;
             s.lastResult = result;
@@ -191,33 +282,33 @@ export function computeAllPlayerStats(matches) {
     for (const playerName of players) {
         const s = stats[playerName];
         
-        // Calculate daily ELO change
-        // Start with current ELO (last point in trajectory) and work backwards through today's matches
-        const currentElo = s.eloTrajectory.length > 0 ? s.eloTrajectory[s.eloTrajectory.length - 1].elo : STARTING_ELO;
-        let eloAtStartOfDay = currentElo;
-        
-        // Work backwards through today's matches (matches are sorted newest first)
-        for (const match of matches) {
-            const isToday = match.timestamp >= startOfDayTimestamp;
-            if (!isToday) break; // matches are sorted newest first, so we can stop
-            
-            if (!Array.isArray(match.teamA) || !Array.isArray(match.teamB)) continue;
-            
-            // Check if this player was in this match
-            const isTeamA = match.teamA.includes(playerName);
-            const isTeamB = match.teamB.includes(playerName);
-            if (!isTeamA && !isTeamB) continue; // Player not in this match
-            
-            const team = isTeamA ? 'A' : 'B';
-            const playerWasWinner = (team === match.winner);
-            const eloDelta = match.eloDelta || 0;
-            
-            // Work backwards: if they won, subtract delta; if they lost, add delta
-            if (playerWasWinner) eloAtStartOfDay -= eloDelta;
-            else eloAtStartOfDay += eloDelta;
+        const todayKeyStr = String(startOfDayTimestamp);
+        s.dailyEloChange = s.dailyDeltas[todayKeyStr] || 0;
+
+        const dailyEntries = Object.entries(s.dailyDeltas)
+            .map(([dayKey, delta]) => ({ day: Number(dayKey), delta }))
+            .sort((a, b) => a.day - b.day);
+
+        let positiveRun = 0;
+        for (let idx = dailyEntries.length - 1; idx >= 0; idx--) {
+            if (dailyEntries[idx].delta > 0) {
+                positiveRun++;
+            } else {
+                break;
+            }
         }
-        
-        s.dailyEloChange = currentElo - eloAtStartOfDay;
+        s.currentPositiveDayRun = positiveRun;
+
+        let phoenix = { isActive: false, recoveredAmount: 0 };
+        if (dailyEntries.length >= 2) {
+            const latest = dailyEntries[dailyEntries.length - 1];
+            const previous = dailyEntries[dailyEntries.length - 2];
+            if (latest.delta > 0 && previous.delta < 0 && latest.delta > Math.abs(previous.delta)) {
+                phoenix = { isActive: true, recoveredAmount: latest.delta };
+            }
+        }
+        s.phoenix = phoenix;
+        s.currentAlternatingRun = s.alternatingRunLength || 0;
         
         // Streakyness
         const n = s.winCount + s.lossCount;
@@ -263,10 +354,35 @@ export function computeAllPlayerStats(matches) {
         delete s.avgTimeBetweenGoals.totalTimePlayed;
         delete s.avgTimeBetweenGoals.totalTeamGoals;
         delete s.avgTimeBetweenGoals.totalOpponentGoals;
+        delete s.dailyDeltas;
+        delete s.alternatingRunLength;
+        delete s.lastAlternatingResult;
     }
     const endTime = performance.now();
     const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(3);
     console.log(`computeAllPlayerStats: total time taken = ${elapsedSeconds} seconds`);
     console.debug(stats)
     return stats;
+}
+
+function computeMaxDeficits(goalLog) {
+    if (!Array.isArray(goalLog) || goalLog.length === 0) {
+        return { A: 0, B: 0 };
+    }
+    let teamAGoals = 0;
+    let teamBGoals = 0;
+    let maxDeficitA = 0;
+    let maxDeficitB = 0;
+    for (const goal of goalLog) {
+        if (goal.team === 'red') {
+            teamAGoals++;
+        } else if (goal.team === 'blue') {
+            teamBGoals++;
+        } else {
+            continue;
+        }
+        maxDeficitA = Math.max(maxDeficitA, teamBGoals - teamAGoals);
+        maxDeficitB = Math.max(maxDeficitB, teamAGoals - teamBGoals);
+    }
+    return { A: maxDeficitA, B: maxDeficitB };
 }

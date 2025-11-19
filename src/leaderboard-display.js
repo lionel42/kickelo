@@ -2,6 +2,7 @@
 import { allPlayers} from './player-data-service.js';
 import { leaderboardList } from './dom-elements.js';
 import { getCachedStats, getAllCachedStats } from './stats-cache-service.js';
+import { STARTING_ELO } from './constants.js';
 
 let onPlayerClickCallback = null;
 let showInactivePlayers = false;  // Default: hide inactive players
@@ -169,6 +170,52 @@ function getDisplayValue(player, stats, sortBy) {
     }
 }
 
+function getCurrentElo(stats) {
+    if (!stats || !Array.isArray(stats.eloTrajectory) || stats.eloTrajectory.length === 0) {
+        return STARTING_ELO;
+    }
+    return stats.eloTrajectory[stats.eloTrajectory.length - 1].elo;
+}
+
+function getStatusBadges(stats) {
+    if (!stats) return [];
+    const badges = [];
+    const currentElo = getCurrentElo(stats);
+
+
+    const events = stats.statusEvents || {};
+    if (events.extinguisherCount >= 1) {
+        badges.push({ emoji: '🌊', value: events.extinguisherCount });
+    }
+    if (events.comebackGoalSum > 0) {
+        badges.push({ emoji: '🪃', value: events.comebackGoalSum });
+    }
+    if (events.shutoutCount > 0) {
+        badges.push({ emoji: '🦏', value: events.shutoutCount });
+    }
+    if (events.underdogPointSum > 0) {
+        badges.push({ emoji: '🐕', value: events.underdogPointSum });
+    }
+
+    if (stats.currentAlternatingRun && stats.currentAlternatingRun >= 7) {
+        badges.push({ emoji: '🐍', value: stats.currentAlternatingRun });
+    }
+    if (stats.phoenix?.isActive) {
+        badges.push({ emoji: '🐦‍🔥', value: Math.round(stats.phoenix.recoveredAmount) });
+    }
+    if (stats.currentPositiveDayRun && stats.currentPositiveDayRun >= 3) {
+        badges.push({ emoji: '🧗', value: stats.currentPositiveDayRun });
+    }
+    if (stats.highestElo && currentElo === stats.highestElo && stats.highestElo > STARTING_ELO) {
+        badges.push({ emoji: '⛰', value: Math.round(stats.highestElo) });
+    }
+    if (stats.currentStreak && stats.currentStreak.type === 'win' && stats.currentStreak.length >= 3) {
+        badges.push({ emoji: '🔥', value: stats.currentStreak.length });
+    }
+
+    return badges;
+}
+
 // The main function to render the leaderboard from the local 'allPlayers' array
 async function updateLeaderboardDisplay() {
     leaderboardList.innerHTML = "";
@@ -234,13 +281,18 @@ async function updateLeaderboardDisplay() {
         indicatorsContainer.style.gap = '15px';
         
         if (playerStats) {
-            // Streak Indicator
-            const streak = playerStats.currentStreak;
-            if (streak && streak.type === 'win' && streak.length >= 3) {
-                const streakSpan = document.createElement('span');
-                streakSpan.textContent = `🔥 ${streak.length}`;
-                streakSpan.style.color = '#ffac33';
-                indicatorsContainer.appendChild(streakSpan);
+            const statusBadges = getStatusBadges(playerStats);
+            if (statusBadges.length > 0) {
+                const badgesContainer = document.createElement('span');
+                badgesContainer.style.display = 'flex';
+                badgesContainer.style.gap = '8px';
+                badgesContainer.style.alignItems = 'center';
+                statusBadges.forEach((badge) => {
+                    const badgeSpan = document.createElement('span');
+                    badgeSpan.textContent = badge.value !== undefined ? `${badge.emoji} ${badge.value}` : badge.emoji;
+                    badgesContainer.appendChild(badgeSpan);
+                });
+                indicatorsContainer.appendChild(badgesContainer);
             }
 
             // Daily ELO Change Indicator
