@@ -181,36 +181,44 @@ function getStatusBadges(stats) {
     if (!stats) return [];
     const badges = [];
     const currentElo = getCurrentElo(stats);
-
+    const formatBadge = (emoji, value, threshold) => {
+        if (typeof value === 'number' && typeof threshold === 'number') {
+            return value > threshold ? { emoji, value } : { emoji };
+        }
+        if (typeof value === 'number' && threshold === undefined) {
+            return { emoji, value };
+        }
+        return { emoji };
+    };
 
     const events = stats.statusEvents || {};
     if (events.extinguisherCount >= 1) {
-        badges.push({ emoji: '🌊', value: events.extinguisherCount });
+        badges.push(formatBadge('🌊', events.extinguisherCount, 1));
     }
-    if (events.comebackGoalSum > 0) {
-        badges.push({ emoji: '🪃', value: events.comebackGoalSum });
+    if (events.comebackGoalSum >= 2) {
+        badges.push(formatBadge('🪃', events.comebackGoalSum, 2));
     }
     if (events.shutoutCount > 0) {
-        badges.push({ emoji: '🦏', value: events.shutoutCount });
+        badges.push(formatBadge('🦏', events.shutoutCount, 1));
     }
     if (events.underdogPointSum > 0) {
-        badges.push({ emoji: '🐕', value: events.underdogPointSum });
+        badges.push(formatBadge('🐕', events.underdogPointSum, 1));
     }
 
     if (stats.currentAlternatingRun && stats.currentAlternatingRun >= 7) {
-        badges.push({ emoji: '🐍', value: stats.currentAlternatingRun });
+        badges.push(formatBadge('🐍', stats.currentAlternatingRun, 7));
     }
     if (stats.phoenix?.isActive) {
-        badges.push({ emoji: '🐦‍🔥', value: Math.round(stats.phoenix.recoveredAmount) });
+        badges.push(formatBadge('🐦‍🔥', Math.round(stats.phoenix.recoveredAmount), 0));
     }
     if (stats.currentPositiveDayRun && stats.currentPositiveDayRun >= 3) {
-        badges.push({ emoji: '🧗', value: stats.currentPositiveDayRun });
+        badges.push(formatBadge('🧗', stats.currentPositiveDayRun, 3));
     }
     if (stats.highestElo && currentElo === stats.highestElo && stats.highestElo > STARTING_ELO) {
-        badges.push({ emoji: '⛰', value: Math.round(stats.highestElo) });
+        badges.push({ emoji: '⛰'});
     }
     if (stats.currentStreak && stats.currentStreak.type === 'win' && stats.currentStreak.length >= 3) {
-        badges.push({ emoji: '🔥', value: stats.currentStreak.length });
+        badges.push(formatBadge('🔥', stats.currentStreak.length, 3));
     }
 
     return badges;
