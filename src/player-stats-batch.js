@@ -57,6 +57,7 @@ export function computeAllPlayerStats(matches) {
             lastResult: null,
             goalStats: { goalsFor: 0, goalsAgainst: 0, resultHistogram: {} },
             highestElo: 0,  // Will be set properly as we process matches
+            isAllTimeEloRecordHolder: false,
             goldenRatio: null,
             goldenCounts: { won54: 0, lost45: 0 },
             comebackCounts: { games: 0, wins: 0 },
@@ -116,14 +117,15 @@ export function computeAllPlayerStats(matches) {
         const teamBAvgElo = match.teamB.length > 0
             ? match.teamB.reduce((sum, pid) => sum + (playerMeta[pid]?.preMatchElo ?? STARTING_ELO), 0) / match.teamB.length
             : STARTING_ELO;
-
+        
+        // Count how many players on each team are breaking opponent win streaks of 5 or more
         const streakBreaksAgainstA = match.teamB.reduce((count, pid) => {
             const meta = playerMeta[pid];
-            return count + (meta?.streakType === 'win' && (meta.streakLength || 0) >= 3 ? 1 : 0);
+            return count + (meta?.streakType === 'win' && (meta.streakLength || 0) >= 5 ? 1 : 0);
         }, 0);
         const streakBreaksAgainstB = match.teamA.reduce((count, pid) => {
             const meta = playerMeta[pid];
-            return count + (meta?.streakType === 'win' && (meta.streakLength || 0) >= 3 ? 1 : 0);
+            return count + (meta?.streakType === 'win' && (meta.streakLength || 0) >= 5 ? 1 : 0);
         }, 0);
 
         let underdogPoints = 0;
@@ -364,6 +366,19 @@ export function computeAllPlayerStats(matches) {
         delete s.alternatingRunLength;
         delete s.lastAlternatingResult;
     }
+    let globalHighestElo = STARTING_ELO;
+    for (const playerName of players) {
+        const playerHighest = stats[playerName]?.highestElo ?? STARTING_ELO;
+        if (playerHighest > globalHighestElo) {
+            globalHighestElo = playerHighest;
+        }
+    }
+
+    for (const playerName of players) {
+        const playerHighest = stats[playerName]?.highestElo ?? STARTING_ELO;
+        stats[playerName].isAllTimeEloRecordHolder = globalHighestElo > STARTING_ELO && playerHighest === globalHighestElo;
+    }
+
     const endTime = performance.now();
     const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(3);
     console.log(`computeAllPlayerStats: total time taken = ${elapsedSeconds} seconds`);

@@ -16,6 +16,7 @@ const BADGE_VALUE_COLORS = {
     '🐍': '#8be47aff', // snake
     '🐕': '#ddb494ff', // underdog
     '🦏': '#97afd1ff', // rhino/shutout
+    '👑': '#facc15', // all-time highest ELO
 };
 
 export function setOnPlayerClick(callback) {
@@ -231,6 +232,9 @@ function getStatusBadges(stats) {
     }
     if (stats.highestElo && currentElo === stats.highestElo && stats.highestElo > STARTING_ELO) {
         badges.push({ emoji: '⛰'});
+    }
+    if (stats.isAllTimeEloRecordHolder && stats.highestElo && currentElo === stats.highestElo && stats.highestElo > STARTING_ELO + 100) {
+        badges.push(formatBadge('👑'));
     }
     if (stats.currentStreak && stats.currentStreak.type === 'win' && stats.currentStreak.length >= 3) {
         badges.push(formatBadge('🔥', stats.currentStreak.length, 3));
