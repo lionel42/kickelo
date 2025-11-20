@@ -55,6 +55,100 @@ export function clearLastSuggestion() {
   lastSuggestion = null;
 }
 
+function collectRelevantPlayers(sessionMatches, activePlayers) {
+  const playerSet = new Set(Array.isArray(activePlayers) ? activePlayers : []);
+  sessionMatches.forEach(match => {
+    [...match.teamA, ...match.teamB].forEach(player => playerSet.add(player));
+    const waiting = match?.pairingMetadata?.waitingPlayers || [];
+    waiting.forEach(player => playerSet.add(player));
+  });
+  return Array.from(playerSet);
+}
+
+function buildAttendanceMatrix(sessionMatches, relevantPlayers) {
+  const attendance = new Map();
+  relevantPlayers.forEach(player => {
+    attendance.set(player, new Array(sessionMatches.length).fill(0));
+  });
+
+  sessionMatches.forEach((match, matchIdx) => {
+    const activeSet = new Set([...match.teamA, ...match.teamB]);
+    const waiting = match?.pairingMetadata?.waitingPlayers || [];
+    waiting.forEach(player => activeSet.add(player));
+    relevantPlayers.forEach(player => {
+      if (activeSet.has(player)) {
+        const weights = attendance.get(player);
+        weights[matchIdx] = 1;
+      }
+    });
+  });
+
+  relevantPlayers.forEach(player => {
+    const weights = attendance.get(player);
+    for (let i = 0; i < weights.length - 1; i++) {
+      if (weights[i] === 0 && weights[i + 1] === 1) {
+        weights[i] = 0.5;
+      }
+    }
+  });
+
+  return attendance;
+}
+
+function computeWaitingKarma(sessionMatches, activePlayers) {
+  if (!sessionMatches.length) {
+    const karma = {};
+    (activePlayers || []).forEach(player => {
+      karma[player] = 0;
+    });
+    return karma;
+  }
+
+  const relevantPlayers = collectRelevantPlayers(sessionMatches, activePlayers);
+  if (!relevantPlayers.length) {
+    return {};
+  }
+
+  const attendanceMatrix = buildAttendanceMatrix(sessionMatches, relevantPlayers);
+  const participantSets = sessionMatches.map(match => new Set([...match.teamA, ...match.teamB]));
+
+  const karma = {};
+  relevantPlayers.forEach(player => { karma[player] = 0; });
+
+  sessionMatches.forEach((match, idx) => {
+    const participants = participantSets[idx];
+    const Pt = match.teamA.length + match.teamB.length;
+    if (Pt === 0) {
+      return;
+    }
+    let Wt = 0;
+    relevantPlayers.forEach(player => {
+      Wt += attendanceMatrix.get(player)[idx];
+    });
+    if (Wt === 0) {
+      relevantPlayers.forEach(player => {
+        const plays = participants.has(player) ? 1 : 0;
+        karma[player] -= plays;
+      });
+      return;
+    }
+
+    relevantPlayers.forEach(player => {
+      const plays = participants.has(player) ? 1 : 0;
+      const weight = attendanceMatrix.get(player)[idx];
+      karma[player] = karma[player] - plays + (weight * Pt) / Wt;
+    });
+  });
+
+  (activePlayers || []).forEach(player => {
+    if (!(player in karma)) {
+      karma[player] = 0;
+    }
+  });
+
+  return karma;
+}
+
 function splitSession(matches) {
     if (!matches.length) return { session: [], historic: [] };
     const now = Date.now();
@@ -150,25 +244,29 @@ function scorePairing(p, data) {
     playsCount,
     countsSession,
     countsHistoric,
-    eloMap
+    eloMap,
+    waitingKarmaMap = {}
   } = data;
 
   const w = {
-    sessionPlays: 100000.0,
+    sessionPlays: 0,
     sessionTeammateRepeat: 100.0,
     historicTeammateRepeat: 20.0,
     sessionOpponentRepeat: 40.0,
     historicOpponentRepeat: 8.0,
     intraTeamEloDiff: 0.1,
     interTeamEloDiff: 0.3,
+    waitingKarma: 100000.0,
   };
 
   const { teamA, teamB } = p;
-  const playsSess = playsCount[teamA[0]] + playsCount[teamA[1]] +
-                    playsCount[teamB[0]] + playsCount[teamB[1]];
+  const playsSess = (playsCount[teamA[0]] || 0) + (playsCount[teamA[1]] || 0) +
+                    (playsCount[teamB[0]] || 0) + (playsCount[teamB[1]] || 0);
 
-  const repSess = countsSession.withCount[teamA[0]][teamA[1]] + countsSession.withCount[teamB[0]][teamB[1]];
-  const repHist = countsHistoric.withCount[teamA[0]][teamA[1]] + countsHistoric.withCount[teamB[0]][teamB[1]];
+  const repSess = (teamA.length === 2 ? countsSession.withCount[teamA[0]][teamA[1]] : 0)
+                + (teamB.length === 2 ? countsSession.withCount[teamB[0]][teamB[1]] : 0);
+  const repHist = (teamA.length === 2 ? countsHistoric.withCount[teamA[0]][teamA[1]] : 0)
+                + (teamB.length === 2 ? countsHistoric.withCount[teamB[0]][teamB[1]] : 0);
 
   let oppRepSess = 0;
   teamA.forEach(a => teamB.forEach(b => { oppRepSess += countsSession.againstCount[a][b]; }));
@@ -178,23 +276,28 @@ function scorePairing(p, data) {
   const eloA0 = eloMap[teamA[0]], eloA1 = eloMap[teamA[1]];
   const eloB0 = eloMap[teamB[0]], eloB1 = eloMap[teamB[1]];
 
-  // log some things for debugging
-    console.log(`Pairing: [${teamA[0]}, ${teamA[1]}] vs) [${teamB[0]}, ${teamB[1]}]`);
-    console.log(`  Plays in session: ${playsSess}`);
-    console.log(`  Teammate repeats - session: ${repSess}, historic: ${repHist}`);
-    console.log(`  Opponent repeats - session: ${oppRepSess}, historic: ${
-    oppRepHist}`);
-    console.log(`  Elo A: ${eloA0}, ${eloA1}; Elo B: ${eloB0}, ${eloB1}`);
-    console.log(`  Intra-team Elo diff: ${Math.abs(eloA0 - eloA1)} + ${Math.abs(eloB0 - eloB1)} = ${Math.abs(eloA0 - eloA1) + Math.abs(eloB0 - eloB1)}`);
-    console.log(`  Inter-team Elo diff: |${(eloA0 + eloA1) / 2} - ${(eloB0 + eloB1) / 2}| = ${Math.abs((eloA0 + eloA1) / 2 - (eloB0 + eloB1) / 2)}`);
-
-
   const intraDiff = Math.abs(eloA0 - eloA1) + Math.abs(eloB0 - eloB1);
   const interDiff = Math.abs((eloA0 + eloA1) / 2 - (eloB0 + eloB1) / 2);
 
-  return -w.sessionPlays * playsSess - w.sessionTeammateRepeat * repSess - w.historicTeammateRepeat * repHist
-         - w.sessionOpponentRepeat * oppRepSess - w.historicOpponentRepeat * oppRepHist
-         - w.intraTeamEloDiff * intraDiff - w.interTeamEloDiff * interDiff;
+  const karmaSum = [...teamA, ...teamB].reduce((sum, player) => sum + (waitingKarmaMap[player] || 0), 0);
+
+  const score = -w.sessionPlays * playsSess - w.sessionTeammateRepeat * repSess - w.historicTeammateRepeat * repHist
+    - w.sessionOpponentRepeat * oppRepSess - w.historicOpponentRepeat * oppRepHist
+    - w.intraTeamEloDiff * intraDiff - w.interTeamEloDiff * interDiff
+    + w.waitingKarma * karmaSum;
+
+  // log some things for debugging
+  // console.log(`Pairing: [${teamA[0]}, ${teamA[1]}] vs) [${teamB[0]}, ${teamB[1]}]`);
+  // console.log(`  Plays in session: ${playsSess}`);
+  // console.log(`  Waiting karma sum: ${Object.values(waitingKarmaMap).reduce((a, b) => a + b, 0)}`);
+  // console.log(`  Teammate repeats - session: ${repSess}, historic: ${repHist}`);
+  // console.log(`  Opponent repeats - session: ${oppRepSess}, historic: ${
+  // oppRepHist}`);
+  // console.log(`  Elo A: ${eloA0}, ${eloA1}; Elo B: ${eloB0}, ${eloB1}`);
+  // console.log(`  Intra-team Elo diff: ${Math.abs(eloA0 - eloA1)} + ${Math.abs(eloB0 - eloB1)} = ${Math.abs(eloA0 - eloA1) + Math.abs(eloB0 - eloB1)}`);
+  // console.log(`  Inter-team Elo diff: |${(eloA0 + eloA1) / 2} - ${(eloB0 + eloB1) / 2}| = ${Math.abs((eloA0 + eloA1) / 2 - (eloB0 + eloB1) / 2)}`);
+
+  return score;
 }
 
 function buildSideCounts(matches) {
@@ -218,66 +321,70 @@ function blueCost(p, countA, countB) { return Math.abs((countA[p] || 0) / ((coun
 
 // Main function to suggest and display pairing
 export async function suggestPairing() {
-    // Fetch active players (this remains a direct Firestore call as it's session-specific)
-    const sessionDocRef = doc(db, 'meta', 'session');
-    const sessDocSnap = await getDoc(sessionDocRef);
-    const activePlayers = (sessDocSnap.exists() && sessDocSnap.data().activePlayers) || [];
-    
-    if (activePlayers.length < 4) {
-        alert("Please select at least 4 active players to suggest a pairing.");
-        return;
-    }
+  // Fetch active players (this remains a direct Firestore call as it's session-specific)
+  const sessionDocRef = doc(db, 'meta', 'session');
+  const sessDocSnap = await getDoc(sessionDocRef);
+  const activePlayers = (sessDocSnap.exists() && sessDocSnap.data().activePlayers) || [];
+  
+  if (activePlayers.length < 4) {
+      alert("Please select at least 4 active players to suggest a pairing.");
+      return;
+  }
 
-    // The match data is already sorted by timestamp descending, so we reverse for chronological order.
-    const chronologicalMatches = [...allMatches].reverse();
-    const { session: sessionMatches, historic: historicMatches } = splitSession(chronologicalMatches);
+  // The match data is already sorted by timestamp descending, so we reverse for chronological order.
+  const chronologicalMatches = [...allMatches].reverse();
+  const { session: sessionMatches, historic: historicMatches } = splitSession(chronologicalMatches);
 
-    const playsCount = countPlaysPerPlayer(sessionMatches, activePlayers);
-    const countsSession = buildCoAndOppCounts(sessionMatches, activePlayers);
-    const countsHistoric = buildCoAndOppCounts(historicMatches, activePlayers);
+  const playsCount = countPlaysPerPlayer(sessionMatches, activePlayers);
+  const countsSession = buildCoAndOppCounts(sessionMatches, activePlayers);
+  const countsHistoric = buildCoAndOppCounts(historicMatches, activePlayers);
+  const waitingKarmaMap = computeWaitingKarma(sessionMatches, activePlayers);
 
-    const eloMap = {};
-    allPlayers.forEach(p => {
-        if (activePlayers.includes(p.id)) {
-            eloMap[p.id] = p.elo;
-        }
-    });
+  console.log("Waiting Karma Map:", waitingKarmaMap);
 
-    const data = {
-        playsCount,
-        countsSession,
-        countsHistoric,
-        eloMap
-    };
+  const eloMap = {};
+  allPlayers.forEach(p => {
+      if (activePlayers.includes(p.id)) {
+          eloMap[p.id] = p.elo;
+      }
+  });
 
-    const candidates = generatePairings(activePlayers);
-    if (candidates.length === 0) {
-        alert("Could not generate any pairings with the selected active players.");
-        return;
-    }
+  const data = {
+      playsCount,
+      countsSession,
+      countsHistoric,
+  eloMap,
+  waitingKarmaMap
+  };
 
-    const scored = candidates.map(p => ({
-        pairing: p,
-        score: scorePairing(p, data)
-    }));
-    scored.sort((a, b) => b.score - a.score);
+  const candidates = generatePairings(activePlayers);
+  if (candidates.length === 0) {
+      alert("Could not generate any pairings with the selected active players.");
+      return;
+  }
 
-    const best = scored[0].pairing;
-    const { countA, countB } = buildSideCounts(chronologicalMatches);
-    const { teamA, teamB } = best;
+  const scored = candidates.map(p => ({
+      pairing: p,
+      score: scorePairing(p, data)
+  }));
+  scored.sort((a, b) => b.score - a.score);
 
-    const cost1 = teamA.reduce((sum, p) => sum + redCost(p, countA, countB), 0) + teamB.reduce((sum, p) => sum + blueCost(p, countA, countB), 0);
-    const cost2 = teamA.reduce((sum, p) => sum + blueCost(p, countA, countB), 0) + teamB.reduce((sum, p) => sum + redCost(p, countA, countB), 0);
+  const best = scored[0].pairing;
+  const { countA, countB } = buildSideCounts(chronologicalMatches);
+  const { teamA, teamB } = best;
 
-    const [redTeam, blueTeam] = (cost1 <= cost2) ? [teamA, teamB] : [teamB, teamA];
+  const cost1 = teamA.reduce((sum, p) => sum + redCost(p, countA, countB), 0) + teamB.reduce((sum, p) => sum + blueCost(p, countA, countB), 0);
+  const cost2 = teamA.reduce((sum, p) => sum + blueCost(p, countA, countB), 0) + teamB.reduce((sum, p) => sum + redCost(p, countA, countB), 0);
 
-    teamA1Select.value = redTeam[0];
-    teamA2Select.value = redTeam[1];
-    teamB1Select.value = blueTeam[0];
-    teamB2Select.value = blueTeam[1];
+  const [redTeam, blueTeam] = (cost1 <= cost2) ? [teamA, teamB] : [teamB, teamA];
 
-    updateTeamArrowState('A');
-    updateTeamArrowState('B');
+  teamA1Select.value = redTeam[0];
+  teamA2Select.value = redTeam[1];
+  teamB1Select.value = blueTeam[0];
+  teamB2Select.value = blueTeam[1];
+
+  updateTeamArrowState('A');
+  updateTeamArrowState('B');
 
   storeLastSuggestion(redTeam, blueTeam, activePlayers);
 }
