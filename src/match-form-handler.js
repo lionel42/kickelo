@@ -11,6 +11,36 @@ import {
     vibrationSeismograph, uploadIndicator
 } from './dom-elements.js';
 import { MAX_GOALS } from './constants.js';
+import { evaluateLastSuggestion, clearLastSuggestion } from './pairing-service.js';
+
+function buildWaitingPlayers(activePlayers = [], teamA = [], teamB = []) {
+    if (!Array.isArray(activePlayers) || activePlayers.length === 0) return [];
+    const playingSet = new Set([...teamA, ...teamB]);
+    return activePlayers.filter(player => !playingSet.has(player));
+}
+
+function buildPairingMetadata(teamA, teamB) {
+    const evaluation = evaluateLastSuggestion(teamA, teamB);
+    if (!evaluation.hasSuggestion) {
+        return { source: 'manual' };
+    }
+    const waitingPlayers = buildWaitingPlayers(evaluation.activePlayers, teamA, teamB);
+    if (evaluation.pairingMatched) {
+        return {
+            source: 'suggested',
+            suggestedAt: evaluation.suggestedAt,
+            waitingPlayers
+        };
+    }
+    if (evaluation.isFresh) {
+        return {
+            source: 'manual',
+            suggestedAt: evaluation.suggestedAt,
+            waitingPlayers
+        };
+    }
+    return { source: 'manual' };
+}
 
 export function setupMatchForm() {
     submitMatchBtn.addEventListener("click", async (e) => {
@@ -107,6 +137,10 @@ export function setupMatchForm() {
             return;
         }
 
+        const pairingMetadata = buildPairingMetadata(teamA, teamB);
+        console.log("Pairing metadata for submitted match:", pairingMetadata);
+
+
         // Update players' ELO and games count
         const matchesColRef = collection(db, 'matches');
         const playersColRef = collection(db, 'players');
@@ -133,11 +167,13 @@ export function setupMatchForm() {
                 goalsB: parsedGoalsB,
                 eloDelta: Math.abs(delta),
                 timestamp: serverTimestamp(),
+                pairingMetadata,
                 ...(liveMode && goalLog.length > 0 ? { goalLog: goalLog.slice(), matchDuration: Date.now() - matchStartTime } : {})
             };
 
             // 2. Add match to Firestore first
             const matchDocRef = await addDoc(matchesColRef, matchData);
+            clearLastSuggestion();
 
             // 3. If vibration tracking enabled, upload log to Storage and update match doc
             if (vibrationTrackingEnabled && vibrationLog.length > 0) {

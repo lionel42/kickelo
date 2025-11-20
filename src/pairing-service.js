@@ -5,6 +5,55 @@ import { teamA1Select, teamA2Select, teamB1Select, teamB2Select } from './dom-el
 import {updateTeamArrowState} from "./match-form-handler.js";
 
 const SESSION_GAP = 30 * 60 * 1000; // 30 minutes in ms
+const SUGGESTION_TTL = SESSION_GAP;
+
+let lastSuggestion = null;
+
+function cloneTeam(team = []) {
+  return Array.isArray(team) ? [...team] : [];
+}
+
+function areTeamsEqual(teamA = [], teamB = []) {
+  if (teamA.length !== teamB.length) return false;
+  const sortedA = [...teamA].sort();
+  const sortedB = [...teamB].sort();
+  return sortedA.every((player, idx) => player === sortedB[idx]);
+}
+
+function pairingMatchesSuggestion(suggestedRed = [], suggestedBlue = [], currentRed = [], currentBlue = []) {
+  const directMatch = areTeamsEqual(suggestedRed, currentRed) && areTeamsEqual(suggestedBlue, currentBlue);
+  const swappedMatch = areTeamsEqual(suggestedRed, currentBlue) && areTeamsEqual(suggestedBlue, currentRed);
+  return directMatch || swappedMatch;
+}
+
+function storeLastSuggestion(redTeam, blueTeam, activePlayers) {
+  lastSuggestion = {
+    redTeam: cloneTeam(redTeam),
+    blueTeam: cloneTeam(blueTeam),
+    activePlayers: Array.isArray(activePlayers) ? [...activePlayers] : [],
+    suggestedAt: Date.now()
+  };
+}
+
+export function evaluateLastSuggestion(currentRedTeam = [], currentBlueTeam = []) {
+  if (!lastSuggestion) {
+    return { hasSuggestion: false };
+  }
+  const { redTeam, blueTeam, suggestedAt, activePlayers } = lastSuggestion;
+  const pairingMatched = pairingMatchesSuggestion(redTeam, blueTeam, currentRedTeam, currentBlueTeam);
+  const isFresh = (Date.now() - suggestedAt) <= SUGGESTION_TTL;
+  return {
+    hasSuggestion: true,
+    pairingMatched,
+    isFresh,
+    suggestedAt,
+    activePlayers: [...activePlayers]
+  };
+}
+
+export function clearLastSuggestion() {
+  lastSuggestion = null;
+}
 
 function splitSession(matches) {
     if (!matches.length) return { session: [], historic: [] };
@@ -229,4 +278,6 @@ export async function suggestPairing() {
 
     updateTeamArrowState('A');
     updateTeamArrowState('B');
+
+  storeLastSuggestion(redTeam, blueTeam, activePlayers);
 }

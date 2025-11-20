@@ -58,6 +58,7 @@ The app is currently functional, with real-time updates via Firestore, a modern 
 - **Players**: `{ id, name, elo, games }`
 - **Matches**: `{ id, teamA, teamB, winner, goalsA, goalsB, eloDelta, timestamp, goalLog?, matchDuration?, vibrationLogPath? }`
   - `teamA` and `teamB` are arrays of player names, length 1 (1v1) or 2 (2v2).
+  - `pairingMetadata` records how the teams were formed: `{ source: 'manual' | 'suggested', suggestedAt?, waitingPlayers? }`. When a suggested pairing is played (or a recent suggestion is tweaked manually), `waitingPlayers` stores who was left out at suggestion time for future “waiting karma” logic.
 
 ## UI Features
 - SVG foosball table with overlayed player selectors
