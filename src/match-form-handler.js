@@ -112,7 +112,15 @@ export function setupMatchForm() {
         }
 
         if (requiresPositionConfirmation() && !isPositionConfirmationChecked()) {
-            return alert("Please confirm the offense/defense positions before submitting.");
+            const proceedWithoutPositions = confirm(
+                "You haven't confirmed the offense/defense positions. Submit anyway without logging them?\n\n" +
+                "If you want them recorded, check the 'Positions confirmed' box above to the submit button before submitting."
+            );
+            if (!proceedWithoutPositions) {
+                positionsConfirmedCheckbox?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                positionsConfirmedCheckbox?.focus();
+                return;
+            }
         }
 
         const winner = parsedGoalsA > parsedGoalsB ? "A" : "B";
@@ -712,9 +720,11 @@ function updatePositionConfirmationUI() {
 
 function updateSubmitMatchButtonState() {
     if (!submitMatchBtn) return;
-    const shouldDisable = requiresPositionConfirmation() && !isPositionConfirmationChecked();
-    submitMatchBtn.disabled = shouldDisable;
-    submitMatchBtn.title = shouldDisable ? 'Confirm offense/defense positions first' : '';
+    const needsPositionConfirmation = requiresPositionConfirmation() && !isPositionConfirmationChecked();
+    submitMatchBtn.disabled = false;
+    submitMatchBtn.title = needsPositionConfirmation
+        ? "Positions aren't confirmed yet. Check the box if you want them logged."
+        : '';
 }
 
 function handleRoleSelectionChange(team) {
