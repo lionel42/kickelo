@@ -7,6 +7,11 @@ import {updateTeamArrowState} from "./match-form-handler.js";
 const SESSION_GAP = 30 * 60 * 1000; // 30 minutes in ms
 const SUGGESTION_TTL = SESSION_GAP;
 
+const WAITING_KARMA_DEFAULTS = {
+  recencyBoosts: [1.5, 1.25],
+  durationInfluence: 0,
+};
+
 let lastSuggestion = null;
 
 function cloneTeam(team = []) {
@@ -95,7 +100,58 @@ function buildAttendanceMatrix(sessionMatches, relevantPlayers) {
   return attendance;
 }
 
-function computeWaitingKarma(sessionMatches, activePlayers) {
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function buildRecencyMultipliers(length, recencyBoosts = []) {
+  const multipliers = new Array(length).fill(1);
+  if (!Array.isArray(recencyBoosts) || !recencyBoosts.length) {
+    return multipliers;
+  }
+
+  let matchIdx = length - 1;
+  for (let i = 0; i < recencyBoosts.length && matchIdx >= 0; i += 1, matchIdx -= 1) {
+    const boost = recencyBoosts[i];
+    if (typeof boost === 'number' && Number.isFinite(boost) && boost > 0) {
+      multipliers[matchIdx] = boost;
+    } else {
+      console.warn(`Invalid recency boost at index ${i}:`, boost);
+    }
+  }
+  return multipliers;
+}
+
+function buildDurationMultipliers(sessionMatches, influenceRaw = 0) {
+  const influence = clamp(typeof influenceRaw === 'number' ? influenceRaw : 0, 0, 1);
+  const length = sessionMatches.length;
+  const multipliers = new Array(length).fill(1);
+  if (length === 0 || influence === 0) {
+    return multipliers;
+  }
+
+  const durations = sessionMatches.map(match => (typeof match.matchDuration === 'number' && match.matchDuration > 0) ? match.matchDuration : null);
+  const validDurations = durations.filter(d => d !== null);
+  if (!validDurations.length) {
+    return multipliers;
+  }
+
+  const avgDuration = validDurations.reduce((sum, d) => sum + d, 0) / validDurations.length || 1;
+  if (avgDuration === 0) {
+    return multipliers;
+  }
+
+  durations.forEach((duration, idx) => {
+    const ratio = duration === null ? 1 : duration / avgDuration;
+    const safeRatio = ratio > 0 ? ratio : 1;
+    const interpolated = (1 - influence) * 1 + influence * safeRatio;
+    multipliers[idx] = interpolated;
+  });
+
+  return multipliers;
+}
+
+function computeWaitingKarma(sessionMatches, activePlayers, options = WAITING_KARMA_DEFAULTS) {
   if (!sessionMatches.length) {
     const karma = {};
     (activePlayers || []).forEach(player => {
@@ -103,6 +159,15 @@ function computeWaitingKarma(sessionMatches, activePlayers) {
     });
     return karma;
   }
+
+  const mergedOptions = {
+    ...WAITING_KARMA_DEFAULTS,
+    ...(options || {}),
+  };
+
+  const recencyMultipliers = buildRecencyMultipliers(sessionMatches.length, mergedOptions.recencyBoosts);
+  const durationMultipliers = buildDurationMultipliers(sessionMatches, mergedOptions.durationInfluence);
+  const matchMultipliers = recencyMultipliers.map((value, idx) => value * durationMultipliers[idx]);
 
   const relevantPlayers = collectRelevantPlayers(sessionMatches, activePlayers);
   if (!relevantPlayers.length) {
@@ -116,6 +181,7 @@ function computeWaitingKarma(sessionMatches, activePlayers) {
   relevantPlayers.forEach(player => { karma[player] = 0; });
 
   sessionMatches.forEach((match, idx) => {
+    const matchWeight = matchMultipliers[idx] || 1;
     const participants = participantSets[idx];
     const Pt = match.teamA.length + match.teamB.length;
     if (Pt === 0) {
@@ -128,7 +194,7 @@ function computeWaitingKarma(sessionMatches, activePlayers) {
     if (Wt === 0) {
       relevantPlayers.forEach(player => {
         const plays = participants.has(player) ? 1 : 0;
-        karma[player] -= plays;
+        karma[player] -= matchWeight * plays;
       });
       return;
     }
@@ -136,7 +202,8 @@ function computeWaitingKarma(sessionMatches, activePlayers) {
     relevantPlayers.forEach(player => {
       const plays = participants.has(player) ? 1 : 0;
       const weight = attendanceMatrix.get(player)[idx];
-      karma[player] = karma[player] - plays + (weight * Pt) / Wt;
+      const delta = -plays + (weight * Pt) / Wt;
+      karma[player] += matchWeight * delta;
     });
   });
 
@@ -338,7 +405,7 @@ export async function suggestPairing() {
   const playsCount = countPlaysPerPlayer(sessionMatches, activePlayers);
   const countsSession = buildCoAndOppCounts(sessionMatches, activePlayers);
   const countsHistoric = buildCoAndOppCounts(historicMatches, activePlayers);
-  const waitingKarmaMap = computeWaitingKarma(sessionMatches, activePlayers);
+  const waitingKarmaMap = computeWaitingKarma(sessionMatches, activePlayers, WAITING_KARMA_DEFAULTS);
 
   console.log("Waiting Karma Map:", waitingKarmaMap);
 

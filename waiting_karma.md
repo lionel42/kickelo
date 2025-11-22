@@ -57,3 +57,10 @@ After processing all session matches, we obtain $k_i^T$ for each eligible player
 3. Keep the legacy code path for plays-in-session but set its weight to $0$ so it can be re-enabled if needed.
 
 This approach ensures players who have patiently waited are prioritized without discarding other balancing heuristics (teammate repeats, Elo, side counts, etc.).
+
+## Optional weighting controls
+
+- **Recency boosts:** Provide a list such as $(1.5, 1.25)$ to weight the most recent matches more heavily. The first element applies to the most recent match, the second to the next-most recent, and so on. Unspecified matches default to weight $1$.
+- **Duration influence:** Supply a coefficient $\alpha \in [0, 1]$ to interpolate between uniform weights ($\alpha = 0$) and pure duration-based weights ($\alpha = 1$). Each match weight becomes $(1 - \alpha) + \alpha \cdot (d^t / \overline{d})$, where $d^t$ is the match duration and $\overline{d}$ is the session average. Missing durations fall back to $1$.
+
+Both knobs feed into the karma recurrence as multiplicative match weights, making recent or long waits count more without changing the underlying fairness formula.

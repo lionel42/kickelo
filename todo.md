@@ -16,13 +16,17 @@
   - [ ] Get to the podium / top of the leaderboard
   - [ ] Play games with X different team-mates
 
-- [ ] Add status emojis
+- [x] Add status emojis
   - [x] 🔥 (with number) for win streaks
-  - [ ] 🧯 for one game for extinguishing a win streak
-  - [ ] ⛰ for highest ELO ever achieved (above starting ELO)
-  - [ ] 🐍 (with number) for alternatingly winning / loosing at least 5 games
-  - [ ] 🐕 (underdog) (with number) for winning against a much higher rated team (at least 100 ELO difference). Number is equal to elo difference // 100
-  - [ ] 🪃 (with number) for a comeback from an X goal deficit (for X>=2) 
-  - [ ] 🦏 for winning 5:0
-  - [ ] 🧗 (with number) for climbing the leaderboard: Positive ELO for X consecutive days (for X>=3)
-  - [ ] 🐦‍🔥 (phoenix) for winning back all the ELO on a day which was lost on the previous day
+  - [x] 🧯 for one game for extinguishing a win streak
+  - [x] ⛰ for highest ELO ever achieved (above starting ELO)
+  - [x] 🐍 (with number) for alternatingly winning / loosing at least 5 games
+  - [x] 🐕 (underdog) (with number) for winning against a much higher rated team (at least 100 ELO difference). Number is equal to elo difference // 100
+  - [x] 🪃 (with number) for a comeback from an X goal deficit (for X>=2) 
+  - [x] 🦏 for winning 5:0
+  - [x] 🧗 (with number) for climbing the leaderboard: Positive ELO for X consecutive days (for X>=3)
+  - [x] 🐦‍🔥 (phoenix) for winning back all the ELO on a day which was lost on the previous day
+
+
+- Make things nicer psychologically for new and less skilled players
+  - Maybe add option to join only with name and no rating and stats shown. When joining later, only stats from that point onwards are displayed.
