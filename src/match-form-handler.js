@@ -231,26 +231,26 @@ export function resetMatchForm() {
 }
 
 const swapRedTeamHitbox = document.getElementById("swap_red_team_hitbox")
-swapRedTeamHitbox.style.pointerEvents = "all";
-swapRedTeamHitbox.addEventListener("click", () => {
-  const tA1 = document.getElementById("teamA1");
-  const tA2 = document.getElementById("teamA2");
-
-  // Swap values
-  [tA1.value, tA2.value] = [tA2.value, tA1.value];
-    notifyRolesChanged('A');
-})
+if (swapRedTeamHitbox) {
+    swapRedTeamHitbox.style.pointerEvents = "all";
+    swapRedTeamHitbox.addEventListener("click", () => {
+        [teamA1Select.value, teamA2Select.value] = [teamA2Select.value, teamA1Select.value];
+        triggerArrowAnimation('A');
+        flashSelectGroup([teamA1Select, teamA2Select]);
+        notifyRolesChanged('A');
+    });
+}
 
 const swapBlueTeamHitbox = document.getElementById("swap_blue_team_hitbox")
-swapBlueTeamHitbox.style.pointerEvents = "all";
-swapBlueTeamHitbox.addEventListener("click", () => {
-  const tB1 = document.getElementById("teamB1");
-  const tB2 = document.getElementById("teamB2");
-
-  // Swap values
-  [tB1.value, tB2.value] = [tB2.value, tB1.value];
-    notifyRolesChanged('B');
-})
+if (swapBlueTeamHitbox) {
+    swapBlueTeamHitbox.style.pointerEvents = "all";
+    swapBlueTeamHitbox.addEventListener("click", () => {
+        [teamB1Select.value, teamB2Select.value] = [teamB2Select.value, teamB1Select.value];
+        triggerArrowAnimation('B');
+        flashSelectGroup([teamB1Select, teamB2Select]);
+        notifyRolesChanged('B');
+    });
+}
 
 
 // Swap teams button
@@ -264,6 +264,7 @@ document.getElementById('swapTeams').addEventListener('click', () => {
     teamA2Select.value = tempB2;
     teamB1Select.value = tempA1;
     teamB2Select.value = tempA2;
+    flashSelectGroup([teamA1Select, teamA2Select, teamB1Select, teamB2Select]);
     notifyRolesChanged();
 });
 
@@ -613,14 +614,44 @@ makeRodDraggable(document.getElementById("blue-defense-rod"), {maxLeft: -5, maxR
 makeRodDraggable(document.getElementById("blue-offense-rod"), {maxLeft: -5, maxRight: 9});
 
 
-const redTeamArrow = document.querySelector('#g20');
-const blueTeamArrow = document.querySelector('#g34');
+const redTeamArrow = document.querySelector('#red-swap-arrow');
+const blueTeamArrow = document.querySelector('#blue-swap-arrow');
+
+function triggerArrowAnimation(team) {
+    const arrow = team === 'A' ? redTeamArrow : blueTeamArrow;
+    if (!arrow) return;
+    arrow.classList.remove('is-animating');
+    arrow.getBoundingClientRect();
+    requestAnimationFrame(() => {
+        arrow.classList.add('is-animating');
+    });
+}
+
+function flashSelect(select) {
+    if (!select) return;
+    select.classList.remove('flash-border');
+    select.getBoundingClientRect();
+    requestAnimationFrame(() => {
+        select.classList.add('flash-border');
+        select.addEventListener('animationend', () => {
+            select.classList.remove('flash-border');
+        }, { once: true });
+    });
+}
+
+function flashSelectGroup(selects = []) {
+    selects.forEach(flashSelect);
+}
 
 export function updateTeamArrowState(team, reset = false) {
     const isTeamA = team === 'A';
     const select1 = isTeamA ? teamA1Select : teamB1Select;
     const select2 = isTeamA ? teamA2Select : teamB2Select;
     const arrow = isTeamA ? redTeamArrow : blueTeamArrow;
+
+    if (!arrow) {
+        return;
+    }
 
     // Check if reset is set or if both dropdowns have values
     const isComplete = !reset && (select1.value.trim() || select2.value.trim());

@@ -102,6 +102,61 @@ h2 {
   z-index: 10;
 }
 
+.overlay-select.flash-border {
+  animation: select-border-flash 450ms ease-out;
+  isolation: isolate;
+}
+
+@keyframes select-border-flash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.65);
+    outline: 2px solid rgba(255, 255, 255, 0);
+    outline-offset: -2px;
+  }
+  10% {
+    /* box-shadow: 0 0 12px 4px rgba(255, 255, 255, 0.4); */
+    outline: 2px solid rgba(255, 255, 255, 0.7);
+    outline-offset: -2px;
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+    outline: 2px solid rgba(255, 255, 255, 0);
+    outline-offset: -2px;
+  }
+}
+
+.swap-arrow {
+  pointer-events: none;
+}
+
+.swap-arrow path {
+  stroke-dasharray: 140;
+  stroke-linecap: round;
+  stroke: #999999;
+}
+
+.swap-arrow.is-animating path {
+  animation: swap-arrow-flash 450ms ease-out;
+}
+
+@keyframes swap-arrow-flash {
+  0% {
+    stroke: #dcdcdc;
+  }
+  10% {
+    stroke: rgba(220, 220, 220);
+  }
+  100% {
+    stroke: #999999;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .swap-arrow.is-animating path {
+    animation: none;
+  }
+}
+
 /* Form Styling */
 div.boxed {
   background: #333333;
