@@ -2,7 +2,7 @@ import { db, getDoc, doc } from './firebase-service.js'; // Only need db access 
 import { allMatches } from './match-data-service.js';
 import { allPlayers } from './player-data-service.js';
 import { teamA1Select, teamA2Select, teamB1Select, teamB2Select } from './dom-elements.js';
-import {updateTeamArrowState} from "./match-form-handler.js";
+import { notifyRolesChanged } from "./match-form-handler.js";
 
 const SESSION_GAP = 30 * 60 * 1000; // 30 minutes in ms
 const SUGGESTION_TTL = SESSION_GAP;
@@ -450,8 +450,7 @@ export async function suggestPairing() {
   teamB1Select.value = blueTeam[0];
   teamB2Select.value = blueTeam[1];
 
-  updateTeamArrowState('A');
-  updateTeamArrowState('B');
+  notifyRolesChanged();
 
   storeLastSuggestion(redTeam, blueTeam, activePlayers);
 }

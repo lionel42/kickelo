@@ -8,7 +8,8 @@ import {
     teamA1Select, teamA2Select, teamB1Select, teamB2Select,
     teamAgoalsInput, teamBgoalsInput, submitMatchBtn,
     toggleLiveMode, liveMatchPanel, btnBlueScored, btnRedScored, goalTimeline, liveModeStatus,
-    vibrationSeismograph, uploadIndicator
+    vibrationSeismograph, uploadIndicator,
+    positionConfirmationContainer, positionsConfirmedCheckbox
 } from './dom-elements.js';
 import { MAX_GOALS } from './constants.js';
 import { evaluateLastSuggestion, clearLastSuggestion } from './pairing-service.js';
@@ -110,6 +111,9 @@ export function setupMatchForm() {
             return alert("Both teams must have the same number of players (1v1 or 2v2).");
         }
 
+        if (requiresPositionConfirmation() && !isPositionConfirmationChecked()) {
+            return alert("Please confirm the offense/defense positions before submitting.");
+        }
 
         const winner = parsedGoalsA > parsedGoalsB ? "A" : "B";
 
@@ -137,8 +141,9 @@ export function setupMatchForm() {
             return;
         }
 
-        const pairingMetadata = buildPairingMetadata(teamA, teamB);
-        console.log("Pairing metadata for submitted match:", pairingMetadata);
+    const pairingMetadata = buildPairingMetadata(teamA, teamB);
+    console.log("Pairing metadata for submitted match:", pairingMetadata);
+    const positionsConfirmedState = getPositionConfirmationState();
 
 
         // Update players' ELO and games count
@@ -168,6 +173,7 @@ export function setupMatchForm() {
                 eloDelta: Math.abs(delta),
                 timestamp: serverTimestamp(),
                 pairingMetadata,
+                positionsConfirmed: positionsConfirmedState,
                 ...(liveMode && goalLog.length > 0 ? { goalLog: goalLog.slice(), matchDuration: Date.now() - matchStartTime } : {})
             };
 
@@ -221,6 +227,7 @@ export function resetMatchForm() {
     teamAgoalsInput.value = "0";
     teamBgoalsInput.value = "0";
     stopLiveMatchTimer(); // Also stop timer on reset
+    updatePositionConfirmationUI();
 }
 
 const swapRedTeamHitbox = document.getElementById("swap_red_team_hitbox")
@@ -231,6 +238,7 @@ swapRedTeamHitbox.addEventListener("click", () => {
 
   // Swap values
   [tA1.value, tA2.value] = [tA2.value, tA1.value];
+    notifyRolesChanged('A');
 })
 
 const swapBlueTeamHitbox = document.getElementById("swap_blue_team_hitbox")
@@ -241,6 +249,7 @@ swapBlueTeamHitbox.addEventListener("click", () => {
 
   // Swap values
   [tB1.value, tB2.value] = [tB2.value, tB1.value];
+    notifyRolesChanged('B');
 })
 
 
@@ -255,6 +264,7 @@ document.getElementById('swapTeams').addEventListener('click', () => {
     teamA2Select.value = tempB2;
     teamB1Select.value = tempA1;
     teamB2Select.value = tempA2;
+    notifyRolesChanged();
 });
 
 // Make it so goals dropdowns are set to MAX_GOALS when one is changed
@@ -625,13 +635,84 @@ export function updateTeamArrowState(team, reset = false) {
 
 // Add event listeners to all dropdowns
 [teamA1Select, teamA2Select].forEach(select => {
-    select.addEventListener('change', () => updateTeamArrowState('A'));
+    if (!select) return;
+    select.addEventListener('change', () => handleRoleSelectionChange('A'));
 });
 
 [teamB1Select, teamB2Select].forEach(select => {
-    select.addEventListener('change', () => updateTeamArrowState('B'));
+    if (!select) return;
+    select.addEventListener('change', () => handleRoleSelectionChange('B'));
 });
 
 // Initial state update
 updateTeamArrowState('A', true);
 updateTeamArrowState('B', true);
+updatePositionConfirmationUI();
+
+if (positionsConfirmedCheckbox) {
+    positionsConfirmedCheckbox.addEventListener('change', () => {
+        updateSubmitMatchButtonState();
+    });
+}
+
+function areAllRolesFilled() {
+    const selects = [teamA1Select, teamA2Select, teamB1Select, teamB2Select];
+    return selects.every(select => Boolean(getFilledRoleValue(select)));
+}
+
+function requiresPositionConfirmation() {
+    return positionConfirmationContainer && positionConfirmationContainer.classList.contains('visible');
+}
+
+function isPositionConfirmationChecked() {
+    return positionsConfirmedCheckbox && positionsConfirmedCheckbox.checked;
+}
+
+function updatePositionConfirmationUI() {
+    if (!positionConfirmationContainer || !positionsConfirmedCheckbox) return;
+    const shouldShow = areAllRolesFilled();
+    positionConfirmationContainer.classList.toggle('visible', shouldShow);
+    positionConfirmationContainer.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
+    if (!shouldShow) {
+        positionsConfirmedCheckbox.checked = false;
+    }
+    updateSubmitMatchButtonState();
+}
+
+function updateSubmitMatchButtonState() {
+    if (!submitMatchBtn) return;
+    const shouldDisable = requiresPositionConfirmation() && !isPositionConfirmationChecked();
+    submitMatchBtn.disabled = shouldDisable;
+    submitMatchBtn.title = shouldDisable ? 'Confirm offense/defense positions first' : '';
+}
+
+function handleRoleSelectionChange(team) {
+    updateTeamArrowState(team);
+    if (positionsConfirmedCheckbox && positionsConfirmedCheckbox.checked) {
+        positionsConfirmedCheckbox.checked = false;
+    }
+    updatePositionConfirmationUI();
+}
+
+function getFilledRoleValue(select) {
+    if (!select) return '';
+    const value = (select.value || '').trim();
+    if (!value || value === '__add_new__') return '';
+    return value;
+}
+
+function getPositionConfirmationState() {
+    if (!positionConfirmationContainer) return null;
+    const isVisible = positionConfirmationContainer.classList.contains('visible');
+    if (!isVisible) return null;
+    return Boolean(isPositionConfirmationChecked());
+}
+
+export function notifyRolesChanged(team = null) {
+    if (team === 'A' || team === 'B') {
+        handleRoleSelectionChange(team);
+        return;
+    }
+    handleRoleSelectionChange('A');
+    handleRoleSelectionChange('B');
+}

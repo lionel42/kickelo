@@ -26,6 +26,8 @@ const goalTimeline = document.getElementById("goalTimeline");
 const liveModeStatus = document.getElementById("liveModeStatus");
 const vibrationSeismograph = document.getElementById('vibrationSeismograph');
 const uploadIndicator = document.getElementById('uploadIndicator');
+const positionConfirmationContainer = document.getElementById('positionConfirmationContainer');
+const positionsConfirmedCheckbox = document.getElementById('positionsConfirmedCheckbox');
 
 
 export {
@@ -52,7 +54,9 @@ export {
     goalTimeline,
     liveModeStatus,
     vibrationSeismograph,
-    uploadIndicator
+    uploadIndicator,
+    positionConfirmationContainer,
+    positionsConfirmedCheckbox
 };
 
 // export const playerStatsBackdrop = document.getElementById('playerStatsBackdrop');

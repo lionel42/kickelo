@@ -242,16 +242,16 @@
        ry="3.8152323" /></g></svg>
 
       <select id="teamA1" class="overlay-select red_select" style="left: 20.5%; top: 18%">
-        <option>Red defense</option>
+        <option value="">Red defense</option>
       </select>
       <select id="teamA2" class="overlay-select red_select" style="left: 20.5%; top: 66.6%">
-        <option>Red offense</option>
+        <option value="">Red offense</option>
       </select>
       <select id="teamB1" class="overlay-select blue_select" style="left: 79.5%; top: 82.3%">
-        <option>Blue defense</option>
+        <option value="">Blue defense</option>
       </select>
       <select id="teamB2" class="overlay-select blue_select" style="left: 79.5%; top: 33.3%">
-        <option>Blue offense</option>
+        <option value="">Blue offense</option>
       </select>
 
       <select id="teamAgoals" class="overlay-select red_select score_select" style="left: 42%; top: 50%">
@@ -275,7 +275,13 @@
 <!--        <button id="swapTeamA" class="overlay-button invisible_swap_button" style="left: 7.5%; top: 42.5%;">Swap</button>-->
 <!--        <button id="swapTeamB" class="overlay-button invisible_swap_button" style="left: 92.5%; top: 57.5%;">Swap</button>-->
     </div>
-    <div style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
+    <div class="live-mode-controls">
+      <div id="positionConfirmationContainer" class="position-confirmation">
+        <label>
+          <span>Offense/Defense positions confirmed</span>
+          <input type="checkbox" id="positionsConfirmedCheckbox" />
+        </label>
+      </div>
       <button id="toggleLiveMode" type="button">Start live mode</button>
     </div>
       <span id="liveModeStatus" style="font-size: 0.9em; color: #888;"></span>
