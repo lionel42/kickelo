@@ -2,7 +2,7 @@
 import { allPlayers} from './player-data-service.js';
 import { leaderboardList } from './dom-elements.js';
 import { getCachedStats, getAllCachedStats } from './stats-cache-service.js';
-import { STARTING_ELO } from './constants.js';
+import { STARTING_ELO, BADGE_THRESHOLDS } from './constants.js';
 
 let onPlayerClickCallback = null;
 let showInactivePlayers = false;  // Default: hide inactive players
@@ -18,6 +18,14 @@ const BADGE_VALUE_COLORS = {
     '🦏': '#97afd1ff', // rhino/shutout
     '👑': '#facc15', // all-time highest ELO
     '☕': '#c08457', // fast win
+    '🎢': '#fb5624ff', // rollercoaster
+    '🐧': '#60a5fa', // chill comeback
+    '🩹': '#f5f5f5ff', // medic
+    '🪴': '#4ade51ff', // gardener
+    'φ': '#fcd34d', // golden streak
+};
+const BADGE_EMOJI_COLORS = {
+    'φ': '#fcd34d',
 };
 
 export function setOnPlayerClick(callback) {
@@ -193,6 +201,9 @@ function getStatusBadges(stats) {
     if (!stats) return [];
     const badges = [];
     const currentElo = getCurrentElo(stats);
+    const medicConfig = BADGE_THRESHOLDS?.medic ?? {};
+    const gardenerConfig = BADGE_THRESHOLDS?.gardener ?? {};
+    const goldenConfig = BADGE_THRESHOLDS?.goldenPhi ?? {};
     const formatBadge = (emoji, value, threshold) => {
         const badge = { emoji };
         const includeValue = typeof value === 'number' && (
@@ -204,6 +215,8 @@ function getStatusBadges(stats) {
             badge.value = value;
             badge.valueColor = BADGE_VALUE_COLORS[emoji];
         }
+
+        badge.emojiColor = BADGE_EMOJI_COLORS[emoji];
 
         return badge;
     };
@@ -221,6 +234,12 @@ function getStatusBadges(stats) {
     if (events.underdogPointSum > 0) {
         badges.push(formatBadge('🐕', events.underdogPointSum, 1));
     }
+    // if (events.rollercoasterCount >= 1) {
+    //     badges.push(formatBadge('🎢', events.rollercoasterCount, 1));
+    // }
+    // if (events.chillComebackCount >= 1) {
+    //     badges.push(formatBadge('🐧', events.chillComebackCount, 1));
+    // }
     if (events.fastWinCount >= 1) {
         badges.push(formatBadge('☕', events.fastWinCount, 1));
     }
@@ -232,7 +251,7 @@ function getStatusBadges(stats) {
     //     badges.push({emoji: '🐦‍🔥'});
     // }
     if (stats.currentPositiveDayRun && stats.currentPositiveDayRun >= 3) {
-        badges.push(formatBadge('🧗', stats.currentPositiveDayRun, 3));
+        badges.push(formatBadge('🧗', stats.currentPositiveDayRun, 0));
     }
     // if (stats.highestElo && currentElo === stats.highestElo && stats.highestElo > STARTING_ELO) {
     //     badges.push({ emoji: '⛰'});
@@ -241,7 +260,22 @@ function getStatusBadges(stats) {
     //     badges.push(formatBadge('👑'));
     // }
     if (stats.currentStreak && stats.currentStreak.type === 'win' && stats.currentStreak.length >= 3) {
-        badges.push(formatBadge('🔥', stats.currentStreak.length, 3));
+        badges.push(formatBadge('🔥', stats.currentStreak.length, 0));
+    }
+
+    const medicHelped = stats.medicTeammatesHelped || 0;
+    if (medicHelped >= (medicConfig.minUniqueTeammates ?? 3)) {
+        badges.push(formatBadge('🩹', medicHelped, 0));
+    }
+
+    // const gardenerStreak = stats.gardenerWeekdayStreak || 0;
+    // if (gardenerStreak >= (gardenerConfig.requiredWeekdays ?? 5)) {
+    //     badges.push(formatBadge('🪴', gardenerStreak, gardenerConfig.requiredWeekdays ?? 5));
+    // }
+
+    const goldenPhi = stats.goldenPhiStreak || 0;
+    if (goldenPhi >= goldenConfig.minWins) {
+        badges.push(formatBadge('φ', goldenPhi, 0));
     }
 
     return badges;
@@ -322,7 +356,12 @@ async function updateLeaderboardDisplay() {
                     const badgeSpan = document.createElement('span');
                     badgeSpan.style.display = 'inline-flex';
                     badgeSpan.style.alignItems = 'baseline';
-                    badgeSpan.append(document.createTextNode(badge.emoji));
+                    const emojiSpan = document.createElement('span');
+                    emojiSpan.textContent = badge.emoji;
+                    if (badge.emojiColor) {
+                        emojiSpan.style.color = badge.emojiColor;
+                    }
+                    badgeSpan.appendChild(emojiSpan);
 
                     if (badge.value !== undefined) {
                         const valueSpan = document.createElement('span');

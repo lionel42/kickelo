@@ -10,3 +10,24 @@ export const ELO_RATING_SCALE = 400;  // Scale factor in the ELO formula (standa
 
 // Player activity threshold (in days)
 export const INACTIVE_THRESHOLD_DAYS = 14;  // Players inactive for 2 weeks
+
+// Badge / emoji configuration
+export const BADGE_THRESHOLDS = Object.freeze({
+	medic: {
+		lookbackDays: 7,
+		minUniqueTeammates: 3,
+		teammateLossStreakLength: 3,
+	},
+	rollercoaster: {
+		minLeadChanges: 3,
+	},
+	chillComeback: {
+		requireFinalScore: '5:4',
+	},
+	gardener: {
+		requiredWeekdays: 5,
+	},
+	goldenPhi: {
+		minWins: 5,
+	},
+});

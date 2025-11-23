@@ -16,6 +16,9 @@ All badge logic feeds the leaderboard through the stats cache. Event-based award
 | 🐍 | Snake | Player's most recent run alternated win/loss for ≥ 5 matches. Number = current alternating length. | `currentAlternatingRun` | ✅ implemented |
 | 🧗 | Climber | Player has positive net Elo change on ≥ 3 consecutive **played** days (days without matches pause the streak). Number = length of positive-day streak. | `currentPositiveDayRun` derived from daily Elo deltas | ✅ implemented |
 | 🐦‍🔥 | Phoenix | Yesterday's net Elo change < 0 and today's change > |yesterday| (strictly greater). Shows once both days exist. Number = today's recovered Elo. | `phoenix` object (`{ isActive, recoveredAmount }`) | ✅ implemented |
+| 🩹 | Medic | Player has helped at least the configured number of unique teammates snap loss streaks (teammate had loss streak ≥ threshold before pairing for a win) within the recent lookback window. Number = qualifying teammates count. | `medicTeammatesHelped` | ✅ implemented |
+| 🪴 | Gardener | Player has active streak of matches across consecutive weekdays (Mon–Fri only), skipping weekends. Number = weekday streak length. | `gardenerWeekdayStreak` | ✅ implemented |
+| Φ | Golden Streak | Player has the configured minimum count of 5:4 wins since their last 4:5 loss. Number = current qualifying streak. | `goldenPhiStreak` | ✅ implemented |
 
 ## Event-Based Emojis (reset daily)
 | Emoji | Name | Trigger Source | Award Logic | Stats Needed | Current Support |
@@ -25,6 +28,8 @@ All badge logic feeds the leaderboard through the stats cache. Event-based award
 | 🪃 | Boomerang | Match result | Winning team trailed by ≥2 goals at any point. Number increases by the max deficit erased in that game (e.g., deficits 2 and 3 → +5). | `statusEvents.comebackGoalSum` | ✅ implemented |
 | 🦏 | Rhino (Shutout) | Match result | Player wins 5:0 (shutout). Each 5:0 victory adds 1 to the daily count. | `statusEvents.shutoutCount` | ✅ implemented |
 | ☕ | Coffee Break | Match result | Winning team finishes the match in under 2 minutes 30 seconds. Each qualifying win adds 1 to the day's tally. | `statusEvents.fastWinCount` | ✅ implemented |
+| 🎢 | Rollercoaster | Match result | Win a match whose goal timeline swaps the leading team at least the configured number of times. Each such win adds 1 for the day. | `statusEvents.rollercoasterCount` | ✅ implemented |
+| 🐧 | Chill Comeback | Match result | Win 5:4 after trailing the entire match until scoring the last two goals (tie at 4:4, then win). Each occurrence adds 1 for the day. | `statusEvents.chillComebackCount` | ✅ implemented |
 
 ## Implementation Notes
 - **Data Flow:** `computeAllPlayerStats` will be extended to produce the new state metrics and daily event tallies. These values will be cached in `stats-cache-service` and consumed by `leaderboard-display` for icon rendering.

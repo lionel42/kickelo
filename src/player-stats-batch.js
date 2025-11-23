@@ -1,4 +1,9 @@
-import { MAX_GOALS, STARTING_ELO, INACTIVE_THRESHOLD_DAYS } from "./constants.js";
+import { MAX_GOALS, STARTING_ELO, INACTIVE_THRESHOLD_DAYS, BADGE_THRESHOLDS } from "./constants.js";
+
+const MILLIS_PER_DAY = 24 * 60 * 60 * 1000;
+const MEDIC_LOOKBACK_MS = (BADGE_THRESHOLDS?.medic?.lookbackDays ?? 7) * MILLIS_PER_DAY;
+const MEDIC_MIN_TEAMMATE_LOSS_STREAK = BADGE_THRESHOLDS?.medic?.teammateLossStreakLength ?? 3;
+const ROLLERCOASTER_MIN_LEAD_CHANGES = BADGE_THRESHOLDS?.rollercoaster?.minLeadChanges ?? 3;
 
 const FAST_WIN_THRESHOLD_MS = 2.5 * 60 * 1000; // 2 minutes 30 seconds
 
@@ -70,15 +75,23 @@ export function computeAllPlayerStats(matches) {
                 underdogPointSum: 0,
                 comebackGoalSum: 0,
                 shutoutCount: 0,
-                fastWinCount: 0
+                fastWinCount: 0,
+                rollercoasterCount: 0,
+                chillComebackCount: 0
             },
             dailyDeltas: {},
             alternatingRunLength: 0,
             lastAlternatingResult: null,
             currentAlternatingRun: 0,
             currentPositiveDayRun: 0,
-            phoenix: { isActive: false, recoveredAmount: 0 }
+            phoenix: { isActive: false, recoveredAmount: 0 },
+            medicTeammatesHelped: 0,
+            gardenerWeekdayStreak: 0,
+            goldenPhiStreak: 0
         };
+        stats[playerName]._medicEvents = [];
+        stats[playerName]._weekdayActivityDays = new Set();
+        stats[playerName]._goldenPhiCurrent = 0;
     }
 
     console.log(`Computing stats for ${players.length} players over ${matches.length} matches..`);
@@ -141,9 +154,12 @@ export function computeAllPlayerStats(matches) {
             }
         }
 
-    const maxDeficits = computeMaxDeficits(match.goalLog);
-    const matchDurationMs = getMatchDurationMs(match);
-    const isFastMatch = typeof matchDurationMs === 'number' && matchDurationMs > 0 && matchDurationMs <= FAST_WIN_THRESHOLD_MS;
+        const maxDeficits = computeMaxDeficits(match.goalLog);
+        const matchDurationMs = getMatchDurationMs(match);
+        const isFastMatch = typeof matchDurationMs === 'number' && matchDurationMs > 0 && matchDurationMs <= FAST_WIN_THRESHOLD_MS;
+        const leadChangeCount = computeLeadChanges(match.goalLog);
+        const isRollercoasterWin = leadChangeCount >= ROLLERCOASTER_MIN_LEAD_CHANGES;
+        const isChillComebackWin = detectChillComeback(match, match.goalLog);
         const comebackDeficit = match.winner === 'A' ? maxDeficits.A : maxDeficits.B;
         const winningGoals = match.winner === 'A' ? match.goalsA : match.goalsB;
         const losingGoals = match.winner === 'A' ? match.goalsB : match.goalsA;
@@ -162,11 +178,23 @@ export function computeAllPlayerStats(matches) {
             const oppPlayers = isTeamA ? match.teamB : match.teamA;
             const teamGoals = isTeamA ? match.goalsA : match.goalsB;
             const oppGoals = isTeamA ? match.goalsB : match.goalsA;
+            if (isWeekdayTimestamp(match.timestamp)) {
+                s._weekdayActivityDays.add(dayKey);
+            }
             
             // ELO trajectory
             let currentElo = s.eloTrajectory.length > 0 ? s.eloTrajectory[s.eloTrajectory.length - 1].elo : STARTING_ELO;
             const playerWasWinner = (team === match.winner);
             const eloDelta = match.eloDelta || 0;
+            if (playerWasWinner) {
+                for (const teammateId of teamPlayers) {
+                    if (teammateId === playerId) continue;
+                    const teammateMeta = playerMeta[teammateId];
+                    if (teammateMeta?.streakType === 'loss' && (teammateMeta.streakLength || 0) >= MEDIC_MIN_TEAMMATE_LOSS_STREAK) {
+                        s._medicEvents.push({ timestamp: match.timestamp, teammateId });
+                    }
+                }
+            }
             if (playerWasWinner) currentElo += eloDelta;
             else currentElo -= eloDelta;
             s.eloTrajectory.push({ elo: Math.round(currentElo), timestamp: match.timestamp });
@@ -205,6 +233,12 @@ export function computeAllPlayerStats(matches) {
                 s.goalStats.goalsAgainst += oppGoals;
                 const key = `${teamGoals}:${oppGoals}`;
                 s.goalStats.resultHistogram[key] = (s.goalStats.resultHistogram[key] || 0) + 1;
+            }
+
+            if (playerWasWinner && teamGoals === MAX_GOALS && oppGoals === MAX_GOALS - 1) {
+                s._goldenPhiCurrent = (s._goldenPhiCurrent || 0) + 1;
+            } else if (!playerWasWinner && teamGoals === MAX_GOALS - 1 && oppGoals === MAX_GOALS) {
+                s._goldenPhiCurrent = 0;
             }
             
             // Golden ratio
@@ -276,6 +310,8 @@ export function computeAllPlayerStats(matches) {
                 if (comebackDeficit >= 2) s.statusEvents.comebackGoalSum += comebackDeficit;
                 if (isShutoutWin) s.statusEvents.shutoutCount += 1;
                 if (isFastMatch) s.statusEvents.fastWinCount += 1;
+                if (isRollercoasterWin) s.statusEvents.rollercoasterCount += 1;
+                if (isChillComebackWin) s.statusEvents.chillComebackCount += 1;
             }
 
             // Streakyness
@@ -351,6 +387,9 @@ export function computeAllPlayerStats(matches) {
         const inactiveThresholdMs = INACTIVE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
         const activityCutoff = Date.now() - inactiveThresholdMs;
         s.isActive = s.lastPlayed && s.lastPlayed >= activityCutoff;
+    s.medicTeammatesHelped = computeMedicUniqueCount(s._medicEvents, MEDIC_LOOKBACK_MS);
+    s.gardenerWeekdayStreak = computeWeekdayActivityStreak(s._weekdayActivityDays);
+    s.goldenPhiStreak = s._goldenPhiCurrent || 0;
         
         // Remove helper fields
         delete s.streakType;
@@ -371,6 +410,9 @@ export function computeAllPlayerStats(matches) {
         delete s.dailyDeltas;
         delete s.alternatingRunLength;
         delete s.lastAlternatingResult;
+        delete s._medicEvents;
+        delete s._weekdayActivityDays;
+        delete s._goldenPhiCurrent;
     }
     let globalHighestElo = STARTING_ELO;
     for (const playerName of players) {
@@ -422,4 +464,123 @@ function computeMaxDeficits(goalLog) {
         maxDeficitB = Math.max(maxDeficitB, teamAGoals - teamBGoals);
     }
     return { A: maxDeficitA, B: maxDeficitB };
+}
+
+function computeLeadChanges(goalLog) {
+    if (!Array.isArray(goalLog) || goalLog.length === 0) {
+        return 0;
+    }
+    let scoreA = 0;
+    let scoreB = 0;
+    let previousLeader = null;
+    let leadChanges = 0;
+    for (const goal of goalLog) {
+        if (goal.team === 'red') scoreA++;
+        else if (goal.team === 'blue') scoreB++;
+        const leader = scoreA === scoreB ? null : (scoreA > scoreB ? 'A' : 'B');
+        if (leader && previousLeader && leader !== previousLeader) {
+            leadChanges++;
+        }
+        if (leader) {
+            previousLeader = leader;
+        }
+    }
+    return leadChanges;
+}
+
+function detectChillComeback(match, goalLog) {
+    if (!match || !Array.isArray(goalLog) || goalLog.length < 2) {
+        return false;
+    }
+    const winner = match.winner;
+    if (winner !== 'A' && winner !== 'B') return false;
+    const winningGoals = winner === 'A' ? match.goalsA : match.goalsB;
+    const losingGoals = winner === 'A' ? match.goalsB : match.goalsA;
+    if (winningGoals !== MAX_GOALS || losingGoals !== MAX_GOALS - 1) {
+        return false;
+    }
+    const winningColor = winner === 'A' ? 'red' : 'blue';
+    const lastTwoGoals = goalLog.slice(-2);
+    if (lastTwoGoals.length < 2 || lastTwoGoals[0].team !== winningColor || lastTwoGoals[1].team !== winningColor) {
+        return false;
+    }
+    let scoreA = 0;
+    let scoreB = 0;
+    const secondLastIndex = goalLog.length - 2;
+    for (let i = 0; i < goalLog.length; i++) {
+        const totalGoals = scoreA + scoreB;
+        const winnerScoreBefore = winner === 'A' ? scoreA : scoreB;
+        const loserScoreBefore = winner === 'A' ? scoreB : scoreA;
+        if (i < secondLastIndex && totalGoals > 0 && winnerScoreBefore >= loserScoreBefore) {
+            return false;
+        }
+        const goal = goalLog[i];
+        if (goal.team === 'red') scoreA++;
+        else if (goal.team === 'blue') scoreB++;
+    }
+    return true;
+}
+
+function computeMedicUniqueCount(events, lookbackMs) {
+    if (!Array.isArray(events) || events.length === 0) return 0;
+    const cutoff = Date.now() - lookbackMs;
+    const uniqueTeammates = new Set();
+    for (const event of events) {
+        if (!event) continue;
+        if (event.timestamp >= cutoff && event.teammateId) {
+            uniqueTeammates.add(event.teammateId);
+        }
+    }
+    return uniqueTeammates.size;
+}
+
+function isWeekdayTimestamp(timestamp) {
+    if (!timestamp) return false;
+    const day = new Date(timestamp).getDay();
+    return day >= 1 && day <= 5;
+}
+
+function alignToMostRecentWeekday(baseDate = new Date()) {
+    const cursor = new Date(baseDate);
+    cursor.setHours(0, 0, 0, 0);
+    let attempts = 0;
+    while (!isWeekdayTimestamp(cursor.getTime())) {
+        cursor.setDate(cursor.getDate() - 1);
+        attempts++;
+        if (attempts > 7) return null;
+    }
+    return cursor;
+}
+
+function getPreviousWeekday(date) {
+    const cursor = new Date(date);
+    cursor.setHours(0, 0, 0, 0);
+    let attempts = 0;
+    do {
+        cursor.setDate(cursor.getDate() - 1);
+        cursor.setHours(0, 0, 0, 0);
+        attempts++;
+        if (attempts > 7) return null;
+    } while (!isWeekdayTimestamp(cursor.getTime()));
+    return cursor;
+}
+
+function computeWeekdayActivityStreak(daySet) {
+    if (!daySet || daySet.size === 0) return 0;
+    let cursor = alignToMostRecentWeekday();
+    if (!cursor) return 0;
+    let streak = 0;
+    let guard = daySet.size + 10;
+    while (cursor && guard > 0) {
+        const key = cursor.getTime();
+        if (daySet.has(key)) {
+            streak++;
+            cursor = getPreviousWeekday(cursor);
+            if (!cursor) break;
+        } else {
+            break;
+        }
+        guard--;
+    }
+    return streak;
 }

@@ -33,3 +33,6 @@
 
 
 - [ ] Add option to edit recent, already logged matches (e.g., to fix mistakes in team assignments and swapping the winner). Could be implemented by
+
+- [ ] improve visuals and quality of life of suggest player select
+  - [ ] maybe also visualize suggest logic
