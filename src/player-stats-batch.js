@@ -1,5 +1,7 @@
 import { MAX_GOALS, STARTING_ELO, INACTIVE_THRESHOLD_DAYS } from "./constants.js";
 
+const FAST_WIN_THRESHOLD_MS = 2.5 * 60 * 1000; // 2 minutes 30 seconds
+
 function getDayKey(timestamp) {
     const day = new Date(timestamp);
     day.setHours(0, 0, 0, 0);
@@ -67,7 +69,8 @@ export function computeAllPlayerStats(matches) {
                 extinguisherCount: 0,
                 underdogPointSum: 0,
                 comebackGoalSum: 0,
-                shutoutCount: 0
+                shutoutCount: 0,
+                fastWinCount: 0
             },
             dailyDeltas: {},
             alternatingRunLength: 0,
@@ -138,7 +141,9 @@ export function computeAllPlayerStats(matches) {
             }
         }
 
-        const maxDeficits = computeMaxDeficits(match.goalLog);
+    const maxDeficits = computeMaxDeficits(match.goalLog);
+    const matchDurationMs = getMatchDurationMs(match);
+    const isFastMatch = typeof matchDurationMs === 'number' && matchDurationMs > 0 && matchDurationMs <= FAST_WIN_THRESHOLD_MS;
         const comebackDeficit = match.winner === 'A' ? maxDeficits.A : maxDeficits.B;
         const winningGoals = match.winner === 'A' ? match.goalsA : match.goalsB;
         const losingGoals = match.winner === 'A' ? match.goalsB : match.goalsA;
@@ -223,7 +228,7 @@ export function computeAllPlayerStats(matches) {
             
             // Avg time between goals
             if (hasGoalLog) {
-                let matchDuration = Math.max(...match.goalLog.map(g => g.timestamp));
+                const matchDuration = matchDurationMs ?? Math.max(...match.goalLog.map(g => g.timestamp));
                 s.avgTimeBetweenGoals.totalTimePlayed += matchDuration;
                 s.avgTimeBetweenGoals.totalTeamGoals += match.goalLog.filter(g => g.team === (team === 'A' ? 'red' : 'blue')).length;
                 s.avgTimeBetweenGoals.totalOpponentGoals += match.goalLog.filter(g => g.team === (team === 'A' ? 'blue' : 'red')).length;
@@ -270,6 +275,7 @@ export function computeAllPlayerStats(matches) {
                 if (underdogPoints > 0) s.statusEvents.underdogPointSum += underdogPoints;
                 if (comebackDeficit >= 2) s.statusEvents.comebackGoalSum += comebackDeficit;
                 if (isShutoutWin) s.statusEvents.shutoutCount += 1;
+                if (isFastMatch) s.statusEvents.fastWinCount += 1;
             }
 
             // Streakyness
@@ -384,6 +390,16 @@ export function computeAllPlayerStats(matches) {
     console.log(`computeAllPlayerStats: total time taken = ${elapsedSeconds} seconds`);
     console.debug(stats)
     return stats;
+}
+
+function getMatchDurationMs(match) {
+    if (Array.isArray(match.goalLog) && match.goalLog.length > 0) {
+        return Math.max(...match.goalLog.map(g => g.timestamp));
+    }
+    if (typeof match.matchDuration === 'number' && match.matchDuration > 0) {
+        return match.matchDuration;
+    }
+    return null;
 }
 
 function computeMaxDeficits(goalLog) {

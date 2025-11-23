@@ -17,6 +17,7 @@ const BADGE_VALUE_COLORS = {
     '🐕': '#ddb494ff', // underdog
     '🦏': '#97afd1ff', // rhino/shutout
     '👑': '#facc15', // all-time highest ELO
+    '☕': '#c08457', // fast win
 };
 
 export function setOnPlayerClick(callback) {
@@ -219,6 +220,9 @@ function getStatusBadges(stats) {
     // }
     if (events.underdogPointSum > 0) {
         badges.push(formatBadge('🐕', events.underdogPointSum, 1));
+    }
+    if (events.fastWinCount >= 1) {
+        badges.push(formatBadge('☕', events.fastWinCount, 1));
     }
 
     // if (stats.currentAlternatingRun && stats.currentAlternatingRun >= 7) {

@@ -114,7 +114,7 @@ export function setupMatchForm() {
         if (requiresPositionConfirmation() && !isPositionConfirmationChecked()) {
             const proceedWithoutPositions = confirm(
                 "You haven't confirmed the offense/defense positions. Submit anyway without logging them?\n\n" +
-                "If you want them recorded, check the 'Positions confirmed' box above to the submit button before submitting."
+                "If you want them recorded, check the 'Positions confirmed' box below the player selects before submitting."
             );
             if (!proceedWithoutPositions) {
                 positionsConfirmedCheckbox?.scrollIntoView({ behavior: 'smooth', block: 'center' });

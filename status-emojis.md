@@ -24,6 +24,7 @@ All badge logic feeds the leaderboard through the stats cache. Event-based award
 | 🐕 | Underdog | Match result | Winning team started ≥100 Elo below losing team (team avg pre-match). Number = sum of `floor(eloDiff / 100)` per qualifying win that day. | `statusEvents.underdogPointSum` | ✅ implemented |
 | 🪃 | Boomerang | Match result | Winning team trailed by ≥2 goals at any point. Number increases by the max deficit erased in that game (e.g., deficits 2 and 3 → +5). | `statusEvents.comebackGoalSum` | ✅ implemented |
 | 🦏 | Rhino (Shutout) | Match result | Player wins 5:0 (shutout). Each 5:0 victory adds 1 to the daily count. | `statusEvents.shutoutCount` | ✅ implemented |
+| ☕ | Coffee Break | Match result | Winning team finishes the match in under 2 minutes 30 seconds. Each qualifying win adds 1 to the day's tally. | `statusEvents.fastWinCount` | ✅ implemented |
 
 ## Implementation Notes
 - **Data Flow:** `computeAllPlayerStats` will be extended to produce the new state metrics and daily event tallies. These values will be cached in `stats-cache-service` and consumed by `leaderboard-display` for icon rendering.

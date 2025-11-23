@@ -100,6 +100,9 @@ function testComputeAllPlayerStats() {
         if (!playerStats.statusEvents) {
             throw new Error(`${playerName} missing statusEvents payload`);
         }
+        if (typeof playerStats.statusEvents.fastWinCount === 'undefined') {
+            throw new Error(`${playerName} missing fastWinCount status event`);
+        }
         if (typeof playerStats.currentAlternatingRun === 'undefined') {
             throw new Error(`${playerName} missing currentAlternatingRun`);
         }
@@ -109,6 +112,12 @@ function testComputeAllPlayerStats() {
         if (!playerStats.phoenix || typeof playerStats.phoenix.isActive === 'undefined') {
             throw new Error(`${playerName} missing phoenix status`);
         }
+    }
+
+    const aliceFastWins = stats['Alice']?.statusEvents?.fastWinCount ?? 0;
+    const bobFastWins = stats['Bob']?.statusEvents?.fastWinCount ?? 0;
+    if (aliceFastWins < 1 || bobFastWins < 1) {
+        throw new Error(`Expected Alice and Bob to earn a fast-win coffee badge (got Alice=${aliceFastWins}, Bob=${bobFastWins})`);
     }
     
     console.log('\n=== Results for each player ===\n');
