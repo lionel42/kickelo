@@ -94,6 +94,14 @@ function getSortValue(player, stats, sortBy) {
     switch (sortBy) {
         case 'elo':
             return player.elo || 0;
+        case 'openskill': {
+            if (!stats || !stats.openskillRating) return 0;
+            return stats.openskillRating.ordinal ?? stats.openskillRating.mu ?? 0;
+        }
+        case 'openskillMuSigma': {
+            if (!stats || !stats.openskillRating) return 0;
+            return stats.openskillRating.mu ?? 0;
+        }
         case 'winRate': {
             if (!stats) return 0;
             const { wins, totalGames } = computeWinsAndLosses(stats);
@@ -145,6 +153,18 @@ function getDisplayValue(player, stats, sortBy) {
     switch (sortBy) {
         case 'elo':
             return player.elo;
+        case 'openskill': {
+            if (!stats || !stats.openskillRating) return STARTING_ELO;
+            const ordinalValue = stats.openskillRating.ordinal ?? stats.openskillRating.mu ?? STARTING_ELO;
+            return Number.isFinite(ordinalValue) ? ordinalValue.toFixed(2) : STARTING_ELO;
+        }
+        case 'openskillMuSigma': {
+            if (!stats || !stats.openskillRating) return 'μ 0.00 / σ 0.00';
+            const { mu, sigma } = stats.openskillRating;
+            const safeMu = Number.isFinite(mu) ? mu.toFixed(2) : '0.00';
+            const safeSigma = Number.isFinite(sigma) ? sigma.toFixed(2) : '0.00';
+            return `μ ${safeMu} / σ ${safeSigma}`;
+        }
         case 'winRate': {
             if (!stats) return '0%';
             const { wins, totalGames } = computeWinsAndLosses(stats);
@@ -268,10 +288,10 @@ function getStatusBadges(stats) {
         badges.push(formatBadge('🩹', medicHelped, 0));
     }
 
-    // const gardenerStreak = stats.gardenerWeekdayStreak || 0;
-    // if (gardenerStreak >= (gardenerConfig.requiredWeekdays ?? 5)) {
-    //     badges.push(formatBadge('🪴', gardenerStreak, gardenerConfig.requiredWeekdays ?? 5));
-    // }
+    const gardenerStreak = stats.gardenerWeekdayStreak || 0;
+    if (gardenerStreak >= (gardenerConfig.requiredWeekdays ?? 5)) {
+        badges.push(formatBadge('🪴', gardenerStreak, gardenerConfig.requiredWeekdays ?? 5));
+    }
 
     const goldenPhi = stats.goldenPhiStreak || 0;
     if (goldenPhi >= goldenConfig.minWins) {

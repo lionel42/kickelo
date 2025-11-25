@@ -1,4 +1,5 @@
 import { MAX_GOALS, STARTING_ELO, INACTIVE_THRESHOLD_DAYS, BADGE_THRESHOLDS } from "./constants.js";
+import { rate as rateOpenSkill, rating as createOpenSkillRating, ordinal as openskillOrdinal } from "openskill";
 
 const MILLIS_PER_DAY = 24 * 60 * 60 * 1000;
 const MEDIC_LOOKBACK_MS = (BADGE_THRESHOLDS?.medic?.lookbackDays ?? 7) * MILLIS_PER_DAY;
@@ -45,6 +46,7 @@ export function computeAllPlayerStats(matches) {
     for (const playerName of players) {
         stats[playerName] = {
             eloTrajectory: [],
+            openskillTrajectory: [],
             winLossRatios: {},
             winLossRatiosWithTeammates: {},
             eloGainsAndLosses: {},
@@ -87,11 +89,19 @@ export function computeAllPlayerStats(matches) {
             phoenix: { isActive: false, recoveredAmount: 0 },
             medicTeammatesHelped: 0,
             gardenerWeekdayStreak: 0,
-            goldenPhiStreak: 0
+            goldenPhiStreak: 0,
+            openskillRating: null
         };
         stats[playerName]._medicEvents = [];
         stats[playerName]._weekdayActivityDays = new Set();
         stats[playerName]._goldenPhiCurrent = 0;
+        const initialOpenSkillRating = createOpenSkillRating();
+        stats[playerName]._openskillState = initialOpenSkillRating;
+        stats[playerName].openskillRating = {
+            mu: initialOpenSkillRating.mu,
+            sigma: initialOpenSkillRating.sigma,
+            ordinal: openskillOrdinal(initialOpenSkillRating)
+        };
     }
 
     console.log(`Computing stats for ${players.length} players over ${matches.length} matches..`);
@@ -165,6 +175,8 @@ export function computeAllPlayerStats(matches) {
         const losingGoals = match.winner === 'A' ? match.goalsB : match.goalsA;
         const isShutoutWin = winningGoals === MAX_GOALS && losingGoals === 0;
         const winnerOppStreakCount = match.winner === 'A' ? streakBreaksAgainstA : streakBreaksAgainstB;
+
+    updateOpenSkillRatingsForMatch(stats, match);
 
         // Process each player involved in the match
         for (const playerId of allPlayersInMatch) {
@@ -329,6 +341,21 @@ export function computeAllPlayerStats(matches) {
         const todayKeyStr = String(startOfDayTimestamp);
         s.dailyEloChange = s.dailyDeltas[todayKeyStr] || 0;
 
+        const finalOpenSkillState = s._openskillState || createOpenSkillRating();
+        s.openskillRating = {
+            mu: finalOpenSkillState.mu,
+            sigma: finalOpenSkillState.sigma,
+            ordinal: openskillOrdinal(finalOpenSkillState)
+        };
+        if (!Array.isArray(s.openskillTrajectory) || s.openskillTrajectory.length === 0) {
+            s.openskillTrajectory = [{
+                mu: finalOpenSkillState.mu,
+                sigma: finalOpenSkillState.sigma,
+                ordinal: openskillOrdinal(finalOpenSkillState),
+                timestamp: s.lastPlayed
+            }];
+        }
+
         const dailyEntries = Object.entries(s.dailyDeltas)
             .map(([dayKey, delta]) => ({ day: Number(dayKey), delta }))
             .sort((a, b) => a.day - b.day);
@@ -413,6 +440,7 @@ export function computeAllPlayerStats(matches) {
         delete s._medicEvents;
         delete s._weekdayActivityDays;
         delete s._goldenPhiCurrent;
+        delete s._openskillState;
     }
     let globalHighestElo = STARTING_ELO;
     for (const playerName of players) {
@@ -432,6 +460,70 @@ export function computeAllPlayerStats(matches) {
     console.log(`computeAllPlayerStats: total time taken = ${elapsedSeconds} seconds`);
     console.debug(stats)
     return stats;
+}
+
+function updateOpenSkillRatingsForMatch(stats, match) {
+    if (!match || (match.winner !== 'A' && match.winner !== 'B')) {
+        return;
+    }
+    if (!Array.isArray(match.teamA) || !Array.isArray(match.teamB)) {
+        return;
+    }
+
+    const teamAPlayers = match.teamA.filter(pid => stats[pid]);
+    const teamBPlayers = match.teamB.filter(pid => stats[pid]);
+    if (teamAPlayers.length === 0 || teamBPlayers.length === 0) {
+        return;
+    }
+
+    const getPlayerRatings = (playerIds) => playerIds.map(pid => {
+        const playerStats = stats[pid];
+        if (!playerStats._openskillState) {
+            playerStats._openskillState = createOpenSkillRating();
+        }
+        return playerStats._openskillState;
+    });
+
+    const winnersFirst = match.winner === 'A'
+        ? getPlayerRatings(teamAPlayers)
+        : getPlayerRatings(teamBPlayers);
+    const losersSecond = match.winner === 'A'
+        ? getPlayerRatings(teamBPlayers)
+        : getPlayerRatings(teamAPlayers);
+
+    let updatedWinners;
+    let updatedLosers;
+    try {
+        const ratedTeams = rateOpenSkill([winnersFirst, losersSecond]);
+        [updatedWinners, updatedLosers] = ratedTeams;
+    } catch (err) {
+        console.warn(`Failed to update OpenSkill ratings for match ${match.id}`, err);
+        return;
+    }
+
+    const recordUpdates = (playerIds, updatedRatings) => {
+        if (!Array.isArray(updatedRatings)) return;
+        playerIds.forEach((pid, idx) => {
+            const playerStats = stats[pid];
+            const newRating = updatedRatings[idx];
+            if (!playerStats || !newRating) return;
+            playerStats._openskillState = newRating;
+            playerStats.openskillTrajectory.push({
+                mu: newRating.mu,
+                sigma: newRating.sigma,
+                ordinal: openskillOrdinal(newRating),
+                timestamp: match.timestamp
+            });
+        });
+    };
+
+    if (match.winner === 'A') {
+        recordUpdates(teamAPlayers, updatedWinners);
+        recordUpdates(teamBPlayers, updatedLosers);
+    } else {
+        recordUpdates(teamBPlayers, updatedWinners);
+        recordUpdates(teamAPlayers, updatedLosers);
+    }
 }
 
 function getMatchDurationMs(match) {

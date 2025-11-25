@@ -113,6 +113,12 @@ function testComputeAllPlayerStats() {
         if (!playerStats.phoenix || typeof playerStats.phoenix.isActive === 'undefined') {
             throw new Error(`${playerName} missing phoenix status`);
         }
+        if (!playerStats.openskillRating || typeof playerStats.openskillRating.mu !== 'number') {
+            throw new Error(`${playerName} missing OpenSkill rating snapshot`);
+        }
+        if (!Array.isArray(playerStats.openskillTrajectory)) {
+            throw new Error(`${playerName} missing OpenSkill trajectory data`);
+        }
     }
 
     const aliceFastWins = stats['Alice']?.statusEvents?.fastWinCount ?? 0;
