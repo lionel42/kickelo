@@ -278,37 +278,37 @@ function getStatusBadges(stats) {
     if (events.comebackGoalSum >= 2) {
         badges.push(formatBadge('🪃', events.comebackGoalSum, 2));
     }
-    // if (events.shutoutCount > 0) {
-    //     badges.push(formatBadge('🦏', events.shutoutCount, 1));
-    // }
+    if (events.shutoutCount > 0) {
+        badges.push(formatBadge('🦏', events.shutoutCount, 1));
+    }
     if (events.underdogPointSum > 0) {
         badges.push(formatBadge('🐕', events.underdogPointSum, 1));
     }
-    // if (events.rollercoasterCount >= 1) {
-    //     badges.push(formatBadge('🎢', events.rollercoasterCount, 1));
-    // }
-    // if (events.chillComebackCount >= 1) {
-    //     badges.push(formatBadge('🐧', events.chillComebackCount, 1));
-    // }
+    if (events.rollercoasterCount >= 1) {
+        badges.push(formatBadge('🎢', events.rollercoasterCount, 1));
+    }
+    if (events.chillComebackCount >= 1) {
+        badges.push(formatBadge('🐧', events.chillComebackCount, 1));
+    }
     if (events.fastWinCount >= 1) {
         badges.push(formatBadge('☕', events.fastWinCount, 1));
     }
 
-    // if (stats.currentAlternatingRun && stats.currentAlternatingRun >= 7) {
-    //     badges.push(formatBadge('🐍', stats.currentAlternatingRun, 7));
-    // }
-    // if (stats.phoenix?.isActive) {
-    //     badges.push({emoji: '🐦‍🔥'});
-    // }
+    if (stats.currentAlternatingRun && stats.currentAlternatingRun >= 7) {
+        badges.push(formatBadge('🐍', stats.currentAlternatingRun, 7));
+    }
+    if (stats.phoenix?.isActive) {
+        badges.push({emoji: '🐦‍🔥'});
+    }
     if (stats.currentPositiveDayRun && stats.currentPositiveDayRun >= 3) {
         badges.push(formatBadge('🧗', stats.currentPositiveDayRun, 0));
     }
-    // if (stats.highestElo && currentElo === stats.highestElo && stats.highestElo > STARTING_ELO) {
-    //     badges.push({ emoji: '⛰'});
-    // }
-    // if (stats.isAllTimeEloRecordHolder && stats.highestElo && currentElo === stats.highestElo && stats.highestElo > STARTING_ELO + 100) {
-    //     badges.push(formatBadge('👑'));
-    // }
+    if (stats.highestElo && currentElo === stats.highestElo && stats.highestElo > STARTING_ELO) {
+        badges.push({ emoji: '⛰'});
+    }
+    if (stats.isAllTimeEloRecordHolder && stats.highestElo && currentElo === stats.highestElo && stats.highestElo > STARTING_ELO + 100) {
+        badges.push(formatBadge('👑'));
+    }
     if (stats.currentStreak && stats.currentStreak.type === 'win' && stats.currentStreak.length >= 3) {
         badges.push(formatBadge('🔥', stats.currentStreak.length, 0));
     }
@@ -318,10 +318,10 @@ function getStatusBadges(stats) {
         badges.push(formatBadge('🩹', medicHelped, 0));
     }
 
-    const gardenerStreak = stats.gardenerWeekdayStreak || 0;
-    if (gardenerStreak >= (gardenerConfig.requiredWeekdays ?? 5)) {
-        badges.push(formatBadge('🪴', gardenerStreak, gardenerConfig.requiredWeekdays ?? 5));
-    }
+    // const gardenerStreak = stats.gardenerWeekdayStreak || 0;
+    // if (gardenerStreak >= (gardenerConfig.requiredWeekdays ?? 5)) {
+    //     badges.push(formatBadge('🪴', gardenerStreak, gardenerConfig.requiredWeekdays ?? 5));
+    // }
 
     const goldenPhi = stats.goldenPhiStreak || 0;
     if (goldenPhi >= goldenConfig.minWins) {
