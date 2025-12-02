@@ -1,7 +1,7 @@
 // Import from the new player data service instead of firebase
 import { allPlayers} from './player-data-service.js';
 import { leaderboardList } from './dom-elements.js';
-import { getCachedStats, getAllCachedStats } from './stats-cache-service.js';
+import { getCachedStats, getAllCachedStats, getAllTeamEloStats } from './stats-cache-service.js';
 import { STARTING_ELO, BADGE_THRESHOLDS } from './constants.js';
 
 let onPlayerClickCallback = null;
@@ -87,6 +87,13 @@ function computeWinsAndLosses(stats) {
     return { wins, losses, totalGames };
 }
 
+function computeRoleEloDelta(stats) {
+    if (!stats || !stats.roleElo) return 0;
+    const offense = stats.roleElo.offense ?? STARTING_ELO;
+    const defense = stats.roleElo.defense ?? STARTING_ELO;
+    return offense - defense;
+}
+
 /**
  * Get the value to sort by for a player
  */
@@ -94,6 +101,16 @@ function getSortValue(player, stats, sortBy) {
     switch (sortBy) {
         case 'elo':
             return player.elo || 0;
+        case 'offenseElo': {
+            if (!stats || !stats.roleElo) return STARTING_ELO;
+            return stats.roleElo.offense ?? STARTING_ELO;
+        }
+        case 'defenseElo': {
+            if (!stats || !stats.roleElo) return STARTING_ELO;
+            return stats.roleElo.defense ?? STARTING_ELO;
+        }
+        case 'offenseVsDefense':
+            return computeRoleEloDelta(stats);
         case 'openskill': {
             if (!stats || !stats.openskillRating) return 0;
             return stats.openskillRating.ordinal ?? stats.openskillRating.mu ?? 0;
@@ -153,6 +170,19 @@ function getDisplayValue(player, stats, sortBy) {
     switch (sortBy) {
         case 'elo':
             return player.elo;
+        case 'offenseElo': {
+            if (!stats || !stats.roleElo) return STARTING_ELO;
+            return Math.round(stats.roleElo.offense ?? STARTING_ELO);
+        }
+        case 'defenseElo': {
+            if (!stats || !stats.roleElo) return STARTING_ELO;
+            return Math.round(stats.roleElo.defense ?? STARTING_ELO);
+        }
+        case 'offenseVsDefense': {
+            if (!stats || !stats.roleElo) return '0';
+            const delta = Math.round(computeRoleEloDelta(stats));
+            return delta > 0 ? `+${delta}` : `${delta}`;
+        }
         case 'openskill': {
             if (!stats || !stats.openskillRating) return STARTING_ELO;
             const ordinalValue = stats.openskillRating.ordinal ?? stats.openskillRating.mu ?? STARTING_ELO;
@@ -301,10 +331,54 @@ function getStatusBadges(stats) {
     return badges;
 }
 
+function renderTeamLeaderboard() {
+    const teamStatsMap = getAllTeamEloStats();
+    const teams = Object.values(teamStatsMap || {});
+    const eligibleTeams = teams
+        .filter(team => (team.games || 0) >= 5)
+        .sort((a, b) => (b.rating || 0) - (a.rating || 0));
+
+    if (eligibleTeams.length === 0) {
+        leaderboardList.innerHTML = '<li>No teams have played 5+ games yet.</li>';
+        return;
+    }
+
+    eligibleTeams.forEach((team, index) => {
+        const li = document.createElement('li');
+        li.style.display = 'flex';
+        li.style.justifyContent = 'space-between';
+        li.style.alignItems = 'center';
+        li.style.cursor = 'default';
+
+        const label = document.createElement('span');
+        const ratingValue = Math.round(team.rating ?? STARTING_ELO);
+        label.textContent = `${team.players.join(' + ')}: ${ratingValue}`;
+
+        const meta = document.createElement('span');
+        meta.textContent = `${team.games} games`;
+        meta.style.fontSize = '0.9em';
+        meta.style.color = 'var(--text-color-secondary, #666)';
+
+        li.appendChild(label);
+        li.appendChild(meta);
+
+        if (index === 0) li.classList.add('gold');
+        else if (index === 1) li.classList.add('silver');
+        else if (index === 2) li.classList.add('bronze');
+
+        leaderboardList.appendChild(li);
+    });
+}
+
 // The main function to render the leaderboard from the local 'allPlayers' array
 async function updateLeaderboardDisplay() {
     leaderboardList.innerHTML = "";
     let index = 0;
+
+    if (sortBy === 'teamElo') {
+        renderTeamLeaderboard();
+        return;
+    }
 
     if (allPlayers.length === 0) {
         leaderboardList.innerHTML = "<li>No players found.</li>";

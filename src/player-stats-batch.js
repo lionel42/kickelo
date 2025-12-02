@@ -1,4 +1,5 @@
 import { MAX_GOALS, STARTING_ELO, INACTIVE_THRESHOLD_DAYS, BADGE_THRESHOLDS } from "./constants.js";
+import { expectedScore, updateRating } from "./elo-service.js";
 import { rate as rateOpenSkill, rating as createOpenSkillRating, ordinal as openskillOrdinal } from "openskill";
 
 const MILLIS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -18,7 +19,8 @@ function getDayKey(timestamp) {
  * Computes all statistics for all players present in a list of matches.
  * Matches must be sorted by timestamp (newest first, as they come from Firestore).
  * @param {Array<Object>} matches - Array of match objects sorted by timestamp descending.
- * @returns {Object<string, Object>} Mapping from player id to their statistics.
+ * @returns {{ players: Object<string, Object>, teams: Object<string, Object> }}
+ *          Aggregated statistics keyed by player plus derived team Elo records.
  */
 export function computeAllPlayerStats(matches) {
     const startTime = performance.now();
@@ -90,7 +92,10 @@ export function computeAllPlayerStats(matches) {
             medicTeammatesHelped: 0,
             gardenerWeekdayStreak: 0,
             goldenPhiStreak: 0,
-            openskillRating: null
+            openskillRating: null,
+            roleElo: { offense: STARTING_ELO, defense: STARTING_ELO },
+            roleEloTrajectory: { offense: [], defense: [] },
+            roleGames: { offense: 0, defense: 0 }
         };
         stats[playerName]._medicEvents = [];
         stats[playerName]._weekdayActivityDays = new Set();
@@ -105,6 +110,8 @@ export function computeAllPlayerStats(matches) {
     }
 
     console.log(`Computing stats for ${players.length} players over ${matches.length} matches..`);
+
+    const teamEloMap = new Map();
 
     // Process all matches in reverse order (oldest to most recent)
     for (let i = matches.length - 1; i >= 0; i--) {
@@ -175,6 +182,18 @@ export function computeAllPlayerStats(matches) {
         const losingGoals = match.winner === 'A' ? match.goalsB : match.goalsA;
         const isShutoutWin = winningGoals === MAX_GOALS && losingGoals === 0;
         const winnerOppStreakCount = match.winner === 'A' ? streakBreaksAgainstA : streakBreaksAgainstB;
+
+        // Only update role-based Elo if positions are confirmed
+        const includeRoleBasedElo = match.positionsConfirmed == true;
+        if (includeRoleBasedElo) {
+            const teamARoles = buildRoleAssignments(match.teamA);
+            const teamBRoles = buildRoleAssignments(match.teamB);
+            if (teamARoles.length > 0 && teamBRoles.length > 0) {
+                updateRoleElosForMatch(stats, teamARoles, teamBRoles, match.winner, match.timestamp);
+            }
+        }
+
+        updateTeamEloRatings(teamEloMap, match.teamA, match.teamB, match.winner, match.timestamp);
 
     updateOpenSkillRatingsForMatch(stats, match);
 
@@ -455,11 +474,13 @@ export function computeAllPlayerStats(matches) {
         stats[playerName].isAllTimeEloRecordHolder = globalHighestElo > STARTING_ELO && playerHighest === globalHighestElo;
     }
 
+    const teamStats = serializeTeamEloMap(teamEloMap);
+
     const endTime = performance.now();
     const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(3);
     console.log(`computeAllPlayerStats: total time taken = ${elapsedSeconds} seconds`);
-    console.debug(stats)
-    return stats;
+    console.debug({ players: stats, teams: teamStats });
+    return { players: stats, teams: teamStats };
 }
 
 function updateOpenSkillRatingsForMatch(stats, match) {
@@ -524,6 +545,145 @@ function updateOpenSkillRatingsForMatch(stats, match) {
         recordUpdates(teamBPlayers, updatedWinners);
         recordUpdates(teamAPlayers, updatedLosers);
     }
+}
+
+function buildRoleAssignments(teamPlayers = []) {
+    if (!Array.isArray(teamPlayers) || teamPlayers.length === 0) return [];
+    if (teamPlayers.length === 1) {
+        const playerId = teamPlayers[0];
+        if (!playerId) return [];
+        return [
+            { playerId, role: 'defense' },
+            { playerId, role: 'offense' }
+        ];
+    }
+    const [defensePlayer, offensePlayer] = teamPlayers;
+    const assignments = [];
+    if (defensePlayer) assignments.push({ playerId: defensePlayer, role: 'defense' });
+    if (offensePlayer) assignments.push({ playerId: offensePlayer, role: 'offense' });
+    return assignments;
+}
+
+function updateRoleElosForMatch(stats, teamA, teamB, winner, timestamp) {
+    if (!stats || (winner !== 'A' && winner !== 'B')) return;
+    const ratingA = computeRoleTeamRating(stats, teamA);
+    const ratingB = computeRoleTeamRating(stats, teamB);
+    if (ratingA === null || ratingB === null) return;
+
+    const scoreA = winner === 'A' ? 1 : 0;
+    const expectedA = expectedScore(ratingA, ratingB);
+    const newRatingA = updateRating(ratingA, expectedA, scoreA);
+    const deltaA = newRatingA - ratingA;
+    const deltaB = -deltaA;
+
+    teamA.forEach((assignment) => applyRoleDelta(stats[assignment.playerId], assignment.role, deltaA, timestamp));
+    teamB.forEach((assignment) => applyRoleDelta(stats[assignment.playerId], assignment.role, deltaB, timestamp));
+}
+
+function computeRoleTeamRating(stats, assignments) {
+    if (!Array.isArray(assignments) || assignments.length === 0) return null;
+    const values = [];
+    for (const { playerId, role } of assignments) {
+        const player = stats[playerId];
+        if (!player) continue;
+        const roleValue = player.roleElo?.[role];
+        values.push(typeof roleValue === 'number' ? roleValue : STARTING_ELO);
+    }
+    if (values.length === 0) return null;
+    return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function applyRoleDelta(playerStats, role, delta, timestamp) {
+    if (!playerStats || typeof delta !== 'number' || Number.isNaN(delta)) return;
+    if (!playerStats.roleElo) {
+        playerStats.roleElo = { offense: STARTING_ELO, defense: STARTING_ELO };
+    }
+    if (!playerStats.roleEloTrajectory) {
+        playerStats.roleEloTrajectory = { offense: [], defense: [] };
+    }
+    if (!playerStats.roleGames) {
+        playerStats.roleGames = { offense: 0, defense: 0 };
+    }
+    const current = playerStats.roleElo[role] ?? STARTING_ELO;
+    const next = Math.round(current + delta);
+    playerStats.roleElo[role] = next;
+    playerStats.roleGames[role] = (playerStats.roleGames[role] || 0) + 1;
+    if (!Array.isArray(playerStats.roleEloTrajectory[role])) {
+        playerStats.roleEloTrajectory[role] = [];
+    }
+    playerStats.roleEloTrajectory[role].push({ rating: next, timestamp });
+}
+
+function updateTeamEloRatings(teamEloMap, teamAPlayers, teamBPlayers, winner, timestamp) {
+    if (!teamEloMap || winner !== 'A' && winner !== 'B') return;
+    if (!Array.isArray(teamAPlayers) || !Array.isArray(teamBPlayers)) return;
+    if (teamAPlayers.length !== 2 || teamBPlayers.length !== 2) return;
+    const uniqueA = new Set(teamAPlayers);
+    const uniqueB = new Set(teamBPlayers);
+    if (uniqueA.size !== 2 || uniqueB.size !== 2) return;
+
+    const teamAEntry = getOrCreateTeamEntry(teamEloMap, teamAPlayers);
+    const teamBEntry = getOrCreateTeamEntry(teamEloMap, teamBPlayers);
+    const expectedA = expectedScore(teamAEntry.rating, teamBEntry.rating);
+    const scoreA = winner === 'A' ? 1 : 0;
+    const newRatingA = updateRating(teamAEntry.rating, expectedA, scoreA);
+    const delta = newRatingA - teamAEntry.rating;
+
+    teamAEntry.rating = newRatingA;
+    teamBEntry.rating -= delta;
+    teamAEntry.games += 1;
+    teamBEntry.games += 1;
+    if (scoreA === 1) {
+        teamAEntry.wins += 1;
+        teamBEntry.losses += 1;
+    } else {
+        teamBEntry.wins += 1;
+        teamAEntry.losses += 1;
+    }
+    const ts = typeof timestamp === 'number' ? timestamp : Date.now();
+    teamAEntry.lastPlayed = Math.max(teamAEntry.lastPlayed || 0, ts);
+    teamBEntry.lastPlayed = Math.max(teamBEntry.lastPlayed || 0, ts);
+    teamAEntry.trajectory.push({ rating: teamAEntry.rating, timestamp: ts });
+    teamBEntry.trajectory.push({ rating: teamBEntry.rating, timestamp: ts });
+}
+
+function getOrCreateTeamEntry(teamEloMap, playerList) {
+    const key = createTeamKey(playerList);
+    if (!teamEloMap.has(key)) {
+        const sortedPlayers = [...playerList].sort();
+        teamEloMap.set(key, {
+            key,
+            players: sortedPlayers,
+            rating: STARTING_ELO,
+            games: 0,
+            wins: 0,
+            losses: 0,
+            lastPlayed: null,
+            trajectory: []
+        });
+    }
+    return teamEloMap.get(key);
+}
+
+function createTeamKey(playerList = []) {
+    return [...playerList].sort().join('::');
+}
+
+function serializeTeamEloMap(teamEloMap) {
+    const result = {};
+    for (const [key, value] of teamEloMap.entries()) {
+        result[key] = {
+            key,
+            players: value.players,
+            rating: value.rating,
+            games: value.games,
+            wins: value.wins,
+            losses: value.losses,
+            lastPlayed: value.lastPlayed,
+            trajectory: value.trajectory
+        };
+    }
+    return result;
 }
 
 function getMatchDurationMs(match) {

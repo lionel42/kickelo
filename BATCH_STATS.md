@@ -45,7 +45,7 @@ The `computeAllPlayerStats` function has been debugged and refactored to compute
  * Computes all statistics for all players present in a list of matches.
  * Matches must be sorted by timestamp (newest first, as they come from Firestore).
  * @param {Array<Object>} matches - Array of match objects sorted by timestamp descending.
- * @returns {Object<string, Object>} Mapping from player id to their statistics.
+ * @returns {{ players: Object<string, Object>, teams: Object<string, Object> }}
  */
 export function computeAllPlayerStats(matches)
 ```
@@ -57,13 +57,18 @@ import { computeAllPlayerStats } from './player-stats-batch.js';
 import { allMatches } from './match-data-service.js';
 
 // Compute stats for all players in the match history
-const stats = computeAllPlayerStats(allMatches);
+const { players: stats, teams } = computeAllPlayerStats(allMatches);
 
 // Access stats for a specific player
 const aliceStats = stats['Alice'];
 console.log(aliceStats.highestElo);
 console.log(aliceStats.currentStreak);
 console.log(aliceStats.streakyness);
+
+// Access stats for a specific duo (team Elo)
+const aliceBobKey = ['Alice', 'Bob'].sort().join('::');
+const aliceBobTeam = teams[aliceBobKey];
+console.log(aliceBobTeam?.rating);
 ```
 
 ## Return Value Structure
@@ -102,9 +107,40 @@ Each player's stats object contains:
   avgTimeBetweenGoals: {
     avgTimePerTeamGoal: number|null,
     avgTimePerOpponentGoal: number|null
+  },
+
+  // Role-based ratings (offense / defense specific Elo)
+  roleElo: {
+    offense: number,
+    defense: number
+  },
+  roleEloTrajectory: {
+    offense: [{ rating: number, timestamp: number }],
+    defense: [{ rating: number, timestamp: number }]
+  },
+  roleGames: {
+    offense: number,
+    defense: number
   }
 }
 ```
+
+In addition to per-player data, `computeAllPlayerStats` now returns a `teams` object keyed by a canonical `"PlayerA::PlayerB"` string. Each team entry looks like:
+
+```javascript
+{
+  key: 'Alice::Bob',
+  players: ['Alice', 'Bob'],
+  rating: number,
+  games: number,
+  wins: number,
+  losses: number,
+  lastPlayed: timestamp,
+  trajectory: [{ rating: number, timestamp: number }]
+}
+```
+
+Teams accumulate Elo updates only when the pair has actually played together (2v2 matches) so the leaderboard can present duos that have at least five games logged.
 
 ## Testing & Debugging
 

@@ -2,9 +2,9 @@
 
 ## Purpose and Current Status
 
-Kickelo is a web application for tracking foosball (table soccer) matches using Elo and OpenSkill rating systems. It allows users to:
+Kickelo is a web application for tracking foosball (table soccer) matches using Elo (overall, offense, defense, and team variants) and OpenSkill rating systems. It allows users to:
 - Record matches (with live mode and manual entry)
-- Track player statistics and leaderboards (with both Elo and OpenSkill views)
+- Track player statistics and leaderboards (Elo, offense/defense Elo, offense-vs-defense delta, team Elo, and OpenSkill views)
 - Suggest fair pairings for games
 - View recent matches and detailed player stats
 
@@ -64,7 +64,7 @@ The app is currently functional, with real-time updates via Firestore, a modern 
 - SVG foosball table with overlayed player selectors
 - Live mode with goal logging and timer
 - Modal for selecting active players
-- Leaderboard with streak and Elo change indicators
+- Leaderboard with streak/Elo change indicators and new offense-vs-defense delta sorting
 - Recent matches with timelines
 - Player stats modal with charts and tables
 

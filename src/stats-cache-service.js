@@ -7,8 +7,8 @@
 
 import { computeAllPlayerStats } from './player-stats-batch.js';
 
-// Cache for all player stats
-let statsCache = {};
+// Cache for all stats (players + teams)
+let statsCache = { players: {}, teams: {} };
 let isCacheValid = false;
 let lastComputeTime = 0;
 
@@ -21,7 +21,7 @@ export function updateStatsCache(matches) {
     const startTime = performance.now();
     
     if (!matches || matches.length === 0) {
-        statsCache = {};
+        statsCache = { players: {}, teams: {} };
         isCacheValid = true;
         return;
     }
@@ -30,12 +30,14 @@ export function updateStatsCache(matches) {
     isCacheValid = true;
     lastComputeTime = performance.now() - startTime;
     
-    console.log(`Stats cache updated: ${Object.keys(statsCache).length} players in ${lastComputeTime.toFixed(2)}ms`);
+    const playerCount = Object.keys(statsCache.players || {}).length;
+    const teamCount = Object.keys(statsCache.teams || {}).length;
+    console.log(`Stats cache updated: ${playerCount} players / ${teamCount} teams in ${lastComputeTime.toFixed(2)}ms`);
     
     // Dispatch event for UI components that may want to refresh (if in browser)
     if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('stats-cache-updated', { 
-            detail: { playerCount: Object.keys(statsCache).length, computeTime: lastComputeTime }
+            detail: { playerCount, teamCount, computeTime: lastComputeTime }
         }));
     }
 }
@@ -51,7 +53,7 @@ export function getCachedStats(playerName) {
         return null;
     }
     
-    return statsCache[playerName] || null;
+    return statsCache.players?.[playerName] || null;
 }
 
 /**
@@ -90,7 +92,15 @@ export function getAllCachedStats() {
         console.warn('Stats cache not initialized. Call updateStatsCache first.');
         return {};
     }
-    return statsCache;
+    return statsCache.players || {};
+}
+
+export function getAllTeamEloStats() {
+    if (!isCacheValid) {
+        console.warn('Stats cache not initialized. Call updateStatsCache first.');
+        return {};
+    }
+    return statsCache.teams || {};
 }
 
 /**
@@ -106,7 +116,7 @@ export function isCacheReady() {
  */
 export function invalidateCache() {
     isCacheValid = false;
-    statsCache = {};
+    statsCache = { players: {}, teams: {} };
 }
 
 /**
@@ -114,10 +124,13 @@ export function invalidateCache() {
  * @returns {Object} Cache metadata
  */
 export function getCacheInfo() {
+    const players = Object.keys(statsCache.players || {});
+    const teams = Object.keys(statsCache.teams || {});
     return {
         isValid: isCacheValid,
-        playerCount: Object.keys(statsCache).length,
+        playerCount: players.length,
+        teamCount: teams.length,
         lastComputeTime: lastComputeTime,
-        playerNames: Object.keys(statsCache)
+        playerNames: players
     };
 }

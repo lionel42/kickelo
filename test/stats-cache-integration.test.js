@@ -5,7 +5,7 @@
  * with the batch computation and can be used by UI components.
  */
 
-import { updateStatsCache, getCachedStats, getAllCachedStats, isCacheReady, getCacheInfo } from '../src/stats-cache-service.js';
+import { updateStatsCache, getCachedStats, getAllCachedStats, isCacheReady, getCacheInfo, getAllTeamEloStats } from '../src/stats-cache-service.js';
 
 // Create test matches
 function createTestMatches() {
@@ -101,6 +101,17 @@ if (Object.keys(allStats).length === 4) {
     console.log('✓ Bulk stats retrieval works');
 } else {
     console.error('✗ Bulk stats retrieval failed');
+    process.exit(1);
+}
+
+console.log('\nTest 4b: Get team Elo stats');
+const allTeamStats = getAllTeamEloStats();
+const teamEntries = Object.keys(allTeamStats);
+if (teamEntries.length > 0) {
+    console.log(`  Retrieved ${teamEntries.length} team entries`);
+    console.log('✓ Team stats retrieval works');
+} else {
+    console.error('✗ Expected at least one team Elo entry');
     process.exit(1);
 }
 

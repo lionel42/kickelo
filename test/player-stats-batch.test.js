@@ -95,7 +95,7 @@ function testComputeAllPlayerStats() {
     console.log(`Created ${matches.length} test matches`);
     console.log(`Players in matches: ${[...new Set(matches.flatMap(m => [...m.teamA, ...m.teamB]))].join(', ')}\n`);
     
-    const stats = computeAllPlayerStats(matches);
+    const { players: stats, teams: teamStats } = computeAllPlayerStats(matches);
 
     for (const [playerName, playerStats] of Object.entries(stats)) {
         if (!playerStats.statusEvents) {
@@ -119,12 +119,28 @@ function testComputeAllPlayerStats() {
         if (!Array.isArray(playerStats.openskillTrajectory)) {
             throw new Error(`${playerName} missing OpenSkill trajectory data`);
         }
+        if (!playerStats.roleElo || typeof playerStats.roleElo.offense !== 'number' || typeof playerStats.roleElo.defense !== 'number') {
+            throw new Error(`${playerName} missing role-specific Elo ratings`);
+        }
+        if (!playerStats.roleEloTrajectory || !Array.isArray(playerStats.roleEloTrajectory.offense) || !Array.isArray(playerStats.roleEloTrajectory.defense)) {
+            throw new Error(`${playerName} missing role-specific Elo trajectories`);
+        }
     }
 
     const aliceFastWins = stats['Alice']?.statusEvents?.fastWinCount ?? 0;
     const bobFastWins = stats['Bob']?.statusEvents?.fastWinCount ?? 0;
     if (aliceFastWins < 1 || bobFastWins < 1) {
         throw new Error(`Expected Alice and Bob to earn a fast-win coffee badge (got Alice=${aliceFastWins}, Bob=${bobFastWins})`);
+    }
+
+    const aliceBobTeam = Object.values(teamStats).find(team =>
+        Array.isArray(team.players) && team.players.includes('Alice') && team.players.includes('Bob')
+    );
+    if (!aliceBobTeam) {
+        throw new Error('Expected Alice & Bob team Elo entry to exist');
+    }
+    if ((aliceBobTeam.games || 0) === 0) {
+        throw new Error('Expected Alice & Bob to have at least one recorded team game');
     }
     
     console.log('\n=== Results for each player ===\n');
@@ -195,7 +211,7 @@ testComputeAllPlayerStats();
 function testBadgeScenarios() {
     console.log('\n=== Testing badge-specific scenarios ===\n');
     const matches = createBadgeScenarioMatches();
-    const stats = computeAllPlayerStats(matches);
+    const { players: stats } = computeAllPlayerStats(matches);
     const aliceStats = stats['Alice'];
     if (!aliceStats) {
         throw new Error('Alice missing from badge scenario stats');
