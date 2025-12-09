@@ -31,3 +31,14 @@ export const BADGE_THRESHOLDS = Object.freeze({
 		minWins: 5,
 	},
 });
+
+
+// Pause configuration
+// Set specific dates when the ELO system should be paused
+// Format: 'YYYY-MM-DD' (e.g., '2025-12-25' for Christmas)
+export const PAUSE_DATES = [
+	'2025-12-09',
+];
+
+export const PAUSE_MESSAGE = "The ELO system is taking a break today!";
+export const PAUSE_IMAGE_PATH = "assets/pause_image.jpeg";
