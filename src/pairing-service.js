@@ -320,9 +320,9 @@ function scorePairing(p, data) {
     sessionTeammateRepeat: 100.0,
     historicTeammateRepeat: 20.0,
     sessionOpponentRepeat: 40.0,
-    historicOpponentRepeat: 8.0,
-    intraTeamEloDiff: 0.1,
-    interTeamEloDiff: 0.3,
+    historicOpponentRepeat: 0.0,
+    intraTeamEloDiff: 0.0,
+    interTeamEloDiff: 0.0,
     waitingKarma: 100000.0,
   };
 
@@ -436,7 +436,24 @@ export async function suggestPairing() {
   }));
   scored.sort((a, b) => b.score - a.score);
 
-  const best = scored[0].pairing;
+  // Take the best scoring pairing. If there's a tie, choose a random one among the best with a seeded random.
+  // Use the active players as a seed for reproducibility within the same session/player set.
+  const bestScore = scored[0].score;
+  const bestCandidates = scored.filter(s => s.score === bestScore);
+  
+  // Create a simple hash from active players to use as seed
+  const seed = activePlayers.sort().join(',').split('').reduce((acc, char) => {
+    return ((acc << 5) - acc) + char.charCodeAt(0) | 0;
+  }, 0);
+  
+  // Seeded random number generator (simple LCG)
+  const seededRandom = (seed) => {
+    const x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+  };
+  
+  const randomIndex = Math.floor(seededRandom(seed + sessionMatches.length) * bestCandidates.length);
+  const best = bestCandidates[randomIndex].pairing;
   const { countA, countB } = buildSideCounts(chronologicalMatches);
   const { teamA, teamB } = best;
 
