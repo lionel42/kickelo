@@ -1,7 +1,7 @@
 const backdrop = document.getElementById('modalBackdrop');
 const modal = document.getElementById('activeModal');
 const modalBody = document.getElementById('modalBody');
-const activeCount = document.getElementById('activeCount');
+const activeTitle = document.getElementById('activeTitle');
 const showInactiveToggleModal = document.getElementById('showInactiveToggleModal');
 const btnSave = document.getElementById('saveActive');
 const btnCancel = document.getElementById('cancelActive');
@@ -38,7 +38,7 @@ export {
     backdrop,
     modal,
     modalBody,
-    activeCount,
+    activeTitle,
     showInactiveToggleModal,
     btnSave,
     btnCancel,

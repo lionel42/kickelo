@@ -647,11 +647,6 @@ button:hover {
   justify-content: space-between;
   gap: 12px;
 }
-#activeModal .active-count {
-  font-weight: normal;
-  color: var(--text-color-secondary);
-  font-size: 0.9em;
-}
 #activeModal .active-header-actions {
   display: flex;
   align-items: center;

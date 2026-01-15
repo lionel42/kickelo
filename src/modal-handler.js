@@ -1,5 +1,5 @@
 import { db, collection, doc, getDoc, setDoc, query, orderBy, getDocs } from './firebase-service.js';
-import { backdrop, modal, modalBody, activeCount, showInactiveToggleModal, btnSave, btnCancel } from './dom-elements.js';
+import { backdrop, modal, modalBody, activeTitle, showInactiveToggleModal, btnSave, btnCancel } from './dom-elements.js';
 import { getAllCachedStats } from './stats-cache-service.js';
 
 const sessionDocRef = doc(db, 'meta', 'session'); // This ref should probably be here
@@ -59,9 +59,9 @@ export async function showPlayerModal(triggerPairingCallback = null) {
     modalBody.innerHTML = ''; // Clear previous content
 
     const updateActiveCount = () => {
-        if (!activeCount) return;
+        if (!activeTitle) return;
         const selectedCount = modalBody.querySelectorAll('input[type=checkbox]:checked').length;
-        activeCount.textContent = `${selectedCount} selected`;
+        activeTitle.textContent = `Select Players (${selectedCount})`;
     };
 
     const getSelectedPlayers = () => {
