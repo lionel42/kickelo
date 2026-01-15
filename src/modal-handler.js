@@ -1,5 +1,5 @@
 import { db, collection, doc, getDoc, setDoc, query, orderBy, getDocs } from './firebase-service.js';
-import { backdrop, modal, modalBody, btnSave, btnCancel } from './dom-elements.js';
+import { backdrop, modal, modalBody, activeCount, btnSave, btnCancel } from './dom-elements.js';
 
 const sessionDocRef = doc(db, 'meta', 'session'); // This ref should probably be here
 
@@ -8,6 +8,12 @@ export async function showPlayerModal(triggerPairingCallback = null) {
     backdrop.style.display = 'flex';
     modal.style.display = 'none'; // Hide modal body for now to prevent flickering
     modalBody.innerHTML = ''; // Clear previous content
+
+    const updateActiveCount = () => {
+        if (!activeCount) return;
+        const selectedCount = modalBody.querySelectorAll('input[type=checkbox]:checked').length;
+        activeCount.textContent = `${selectedCount} selected`;
+    };
 
     // Load all players
     const playersColRef = collection(db, 'players');
@@ -29,6 +35,9 @@ export async function showPlayerModal(triggerPairingCallback = null) {
         lbl.appendChild(document.createTextNode(name));
         modalBody.appendChild(lbl);
     });
+
+    modalBody.onchange = updateActiveCount;
+    updateActiveCount();
 
     // Attach handler
     btnSave.onclick = async () => {
