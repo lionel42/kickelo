@@ -645,11 +645,30 @@ button:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
 }
 #activeModal .active-count {
   font-weight: normal;
   color: var(--text-color-secondary);
   font-size: 0.9em;
+}
+#activeModal .active-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#activeModal .active-toggle {
+  width: auto;
+  padding: 4px 10px;
+  font-size: 0.85em;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--card-background-color);
+  color: var(--text-color-secondary);
+  box-shadow: none;
+}
+#activeModal .active-toggle:hover {
+  background: var(--hover-color);
 }
 #activeModal .body {
   padding: 1rem;

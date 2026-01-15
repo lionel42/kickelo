@@ -2,6 +2,7 @@ const backdrop = document.getElementById('modalBackdrop');
 const modal = document.getElementById('activeModal');
 const modalBody = document.getElementById('modalBody');
 const activeCount = document.getElementById('activeCount');
+const showInactiveToggleModal = document.getElementById('showInactiveToggleModal');
 const btnSave = document.getElementById('saveActive');
 const btnCancel = document.getElementById('cancelActive');
 
@@ -36,6 +37,7 @@ export {
     modal,
     modalBody,
     activeCount,
+    showInactiveToggleModal,
     btnSave,
     btnCancel,
     leaderboardList,
