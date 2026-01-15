@@ -8,8 +8,9 @@ import { initializeRecentMatchesDisplay } from './recent-matches-display.js';
 import { suggestPairing } from './pairing-service.js';
 import { setupMatchForm } from './match-form-handler.js';
 import { showPlayerStats } from './player-stats-component.js';
-import { initializeMatchesData, resetMatchDataListener } from './match-data-service.js';
+import { initializeMatchesData, resetMatchDataListener, refreshSeasonStats } from './match-data-service.js';
 import { PAUSE_DATES, PAUSE_MESSAGE, PAUSE_IMAGE_PATH } from './constants.js';
+import { getSelectedSeason } from './season-service.js';
 
 import { auth } from './firebase-service.js';
 import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
@@ -133,6 +134,11 @@ if (isPauseDay()) {
         showPlayerStats(playerName);
     };
     setOnPlayerClick(clickPlayer);
+
+    window.addEventListener('season-changed', (event) => {
+        const season = event.detail?.season ?? getSelectedSeason();
+        refreshSeasonStats(season);
+    });
 
     // Setup match form submission
     setupMatchForm();

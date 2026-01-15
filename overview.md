@@ -65,6 +65,7 @@ The app is currently functional, with real-time updates via Firestore, a modern 
 - Live mode with goal logging and timer
 - Modal for selecting active players
 - Leaderboard with streak/Elo change indicators and new offense-vs-defense delta sorting
+- Season selector in leaderboard settings to recompute all stats per season
 - Recent matches with timelines
 - Player stats modal with charts and tables
 
@@ -72,6 +73,11 @@ The app is currently functional, with real-time updates via Firestore, a modern 
 - Modular codebase: Each feature is in its own file
 - Centralized data/state management
 - Easily supports new analytics, UI components, or data sources
+
+## Seasons
+- Seasons are configured in the frontend (name, start/end, optional Elo K-factor override)
+- The selected season filters match history for all stat computations
+- Default season is the most recent season containing the current date
 
 ## Testing
 - Test files located in `test/` directory

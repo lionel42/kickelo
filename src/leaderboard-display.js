@@ -2,6 +2,7 @@
 import { allPlayers} from './player-data-service.js';
 import { leaderboardList } from './dom-elements.js';
 import { getCachedStats, getAllCachedStats, getAllTeamEloStats } from './stats-cache-service.js';
+import { getSeasons, getSelectedSeason, setSelectedSeason } from './season-service.js';
 import { STARTING_ELO, BADGE_THRESHOLDS } from './constants.js';
 
 let onPlayerClickCallback = null;
@@ -94,13 +95,20 @@ function computeRoleEloDelta(stats) {
     return offense - defense;
 }
 
+function getCurrentEloFromStats(stats) {
+    if (!stats || !Array.isArray(stats.eloTrajectory) || stats.eloTrajectory.length === 0) {
+        return null;
+    }
+    return stats.eloTrajectory[stats.eloTrajectory.length - 1].elo;
+}
+
 /**
  * Get the value to sort by for a player
  */
 function getSortValue(player, stats, sortBy) {
     switch (sortBy) {
         case 'elo':
-            return player.elo || 0;
+            return getCurrentEloFromStats(stats) ?? player.elo ?? STARTING_ELO;
         case 'offenseElo': {
             if (!stats || !stats.roleElo) return STARTING_ELO;
             return stats.roleElo.offense ?? STARTING_ELO;
@@ -169,7 +177,7 @@ function getSortValue(player, stats, sortBy) {
 function getDisplayValue(player, stats, sortBy) {
     switch (sortBy) {
         case 'elo':
-            return player.elo;
+            return getCurrentEloFromStats(stats) ?? player.elo ?? STARTING_ELO;
         case 'offenseElo': {
             if (!stats || !stats.roleElo) return STARTING_ELO;
             return Math.round(stats.roleElo.offense ?? STARTING_ELO);
@@ -397,12 +405,30 @@ async function updateLeaderboardDisplay() {
         return bValue - aValue;  // Descending order
     });
 
+    // Filter out players without matches in the selected season
+    let filteredPlayers = sortedPlayers.filter(player => {
+        const stats = allStats[player.name];
+        return stats && Array.isArray(stats.eloTrajectory) && stats.eloTrajectory.length > 0;
+    });
+
+    const selectedSeason = getSelectedSeason();
+    const isCurrentSeason = selectedSeason
+        ? selectedSeason.includes(Date.now())
+        : true;
+
     // Filter out inactive players if needed
-    let filteredPlayers = showInactivePlayers 
-        ? sortedPlayers 
-        : sortedPlayers.filter(player => {
+    filteredPlayers = showInactivePlayers
+        ? filteredPlayers
+        : filteredPlayers.filter(player => {
             const stats = allStats[player.name];
-            return !stats || stats.isActive;  // Show if no stats or if active
+            if (!stats) return false;
+            if (isCurrentSeason) {
+                return stats.isActive;
+            }
+            const matchCount = Array.isArray(stats.eloTrajectory)
+                ? stats.eloTrajectory.length
+                : 0;
+            return matchCount >= 10;
         });
 
     // When sorting by daily change, also filter out players with 0 change
@@ -414,9 +440,9 @@ async function updateLeaderboardDisplay() {
     }
 
     if (filteredPlayers.length === 0) {
-        leaderboardList.innerHTML = showInactivePlayers 
-            ? "<li>No players found.</li>"
-            : "<li>No active players found.</li>";
+        leaderboardList.innerHTML = showInactivePlayers
+            ? "<li>No players found for this season.</li>"
+            : "<li>No active players found for this season.</li>";
         return;
     }
 
@@ -546,6 +572,32 @@ export function initializeLeaderboardDisplay() {
         toggleButton.addEventListener('click', () => {
             setShowInactivePlayers(!showInactivePlayers);
             updateButtonAppearance();
+        });
+    }
+
+    // Set up the season dropdown
+    const seasonSelect = document.getElementById('seasonSelect');
+    if (seasonSelect) {
+        const seasons = getSeasons();
+        seasonSelect.innerHTML = '';
+        seasons.forEach((season) => {
+            const option = document.createElement('option');
+            option.value = season.id;
+            option.textContent = season.name;
+            seasonSelect.appendChild(option);
+        });
+        const selectedSeason = getSelectedSeason();
+        if (selectedSeason) {
+            seasonSelect.value = selectedSeason.id;
+        }
+        seasonSelect.addEventListener('change', (e) => {
+            setSelectedSeason(e.target.value);
+        });
+        window.addEventListener('season-changed', (event) => {
+            const season = event.detail?.season;
+            if (season && seasonSelect.value !== season.id) {
+                seasonSelect.value = season.id;
+            }
         });
     }
 

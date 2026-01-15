@@ -22,8 +22,9 @@ function getDayKey(timestamp) {
  * @returns {{ players: Object<string, Object>, teams: Object<string, Object> }}
  *          Aggregated statistics keyed by player plus derived team Elo records.
  */
-export function computeAllPlayerStats(matches) {
+export function computeAllPlayerStats(matches, options = {}) {
     const startTime = performance.now();
+    const seasonKFactor = options.season?.kFactor;
     
     // Extract all unique player IDs from matches
     const playerSet = new Set();
@@ -150,6 +151,10 @@ export function computeAllPlayerStats(matches) {
         const teamBAvgElo = match.teamB.length > 0
             ? match.teamB.reduce((sum, pid) => sum + (playerMeta[pid]?.preMatchElo ?? STARTING_ELO), 0) / match.teamB.length
             : STARTING_ELO;
+
+        const expectedA = expectedScore(teamAAvgElo, teamBAvgElo);
+        const scoreA = match.winner === 'A' ? 1 : 0;
+        const matchEloDelta = Math.abs(updateRating(0, expectedA, scoreA, seasonKFactor));
         
         // Count how many players on each team are breaking opponent win streaks of 5 or more
         const streakBreaksAgainstA = match.teamB.reduce((count, pid) => {
@@ -189,11 +194,11 @@ export function computeAllPlayerStats(matches) {
             const teamARoles = buildRoleAssignments(match.teamA);
             const teamBRoles = buildRoleAssignments(match.teamB);
             if (teamARoles.length > 0 && teamBRoles.length > 0) {
-                updateRoleElosForMatch(stats, teamARoles, teamBRoles, match.winner, match.timestamp);
+                updateRoleElosForMatch(stats, teamARoles, teamBRoles, match.winner, match.timestamp, seasonKFactor);
             }
         }
 
-        updateTeamEloRatings(teamEloMap, match.teamA, match.teamB, match.winner, match.timestamp);
+        updateTeamEloRatings(teamEloMap, match.teamA, match.teamB, match.winner, match.timestamp, seasonKFactor);
 
     updateOpenSkillRatingsForMatch(stats, match);
 
@@ -216,7 +221,7 @@ export function computeAllPlayerStats(matches) {
             // ELO trajectory
             let currentElo = s.eloTrajectory.length > 0 ? s.eloTrajectory[s.eloTrajectory.length - 1].elo : STARTING_ELO;
             const playerWasWinner = (team === match.winner);
-            const eloDelta = match.eloDelta || 0;
+            const eloDelta = matchEloDelta;
             if (playerWasWinner) {
                 for (const teammateId of teamPlayers) {
                     if (teammateId === playerId) continue;
@@ -564,7 +569,7 @@ function buildRoleAssignments(teamPlayers = []) {
     return assignments;
 }
 
-function updateRoleElosForMatch(stats, teamA, teamB, winner, timestamp) {
+function updateRoleElosForMatch(stats, teamA, teamB, winner, timestamp, kFactor) {
     if (!stats || (winner !== 'A' && winner !== 'B')) return;
     const ratingA = computeRoleTeamRating(stats, teamA);
     const ratingB = computeRoleTeamRating(stats, teamB);
@@ -572,7 +577,7 @@ function updateRoleElosForMatch(stats, teamA, teamB, winner, timestamp) {
 
     const scoreA = winner === 'A' ? 1 : 0;
     const expectedA = expectedScore(ratingA, ratingB);
-    const newRatingA = updateRating(ratingA, expectedA, scoreA);
+    const newRatingA = updateRating(ratingA, expectedA, scoreA, kFactor);
     const deltaA = newRatingA - ratingA;
     const deltaB = -deltaA;
 
@@ -614,7 +619,7 @@ function applyRoleDelta(playerStats, role, delta, timestamp) {
     playerStats.roleEloTrajectory[role].push({ rating: next, timestamp });
 }
 
-function updateTeamEloRatings(teamEloMap, teamAPlayers, teamBPlayers, winner, timestamp) {
+function updateTeamEloRatings(teamEloMap, teamAPlayers, teamBPlayers, winner, timestamp, kFactor) {
     if (!teamEloMap || winner !== 'A' && winner !== 'B') return;
     if (!Array.isArray(teamAPlayers) || !Array.isArray(teamBPlayers)) return;
     if (teamAPlayers.length !== 2 || teamBPlayers.length !== 2) return;
@@ -626,7 +631,7 @@ function updateTeamEloRatings(teamEloMap, teamAPlayers, teamBPlayers, winner, ti
     const teamBEntry = getOrCreateTeamEntry(teamEloMap, teamBPlayers);
     const expectedA = expectedScore(teamAEntry.rating, teamBEntry.rating);
     const scoreA = winner === 'A' ? 1 : 0;
-    const newRatingA = updateRating(teamAEntry.rating, expectedA, scoreA);
+    const newRatingA = updateRating(teamAEntry.rating, expectedA, scoreA, kFactor);
     const delta = newRatingA - teamAEntry.rating;
 
     teamAEntry.rating = newRatingA;

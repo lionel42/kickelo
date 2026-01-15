@@ -7,8 +7,8 @@ function expectedScore(r1, r2) {
     return 1 / (1 + Math.pow(10, (r2 - r1) / ELO_RATING_SCALE));
 }
 
-function updateRating(old, expected, score) {
-    return Math.round(old + K * (score - expected));
+function updateRating(old, expected, score, kFactor = K) {
+    return Math.round(old + kFactor * (score - expected));
 }
 
 export {

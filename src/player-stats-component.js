@@ -1,13 +1,9 @@
-import {
-    getHighestElo,
-    getGoldenRatio,
-    getComebackPercentage,
-} from './player-stats-service.js';
 import { getCachedStats, isCacheReady } from './stats-cache-service.js';
 import { allMatches } from './match-data-service.js';
 import { MAX_GOALS } from './constants.js';
 import Chart from "chart.js/auto";
 import { createTimelineWithLabel } from './match-timeline.js';
+import { filterMatchesBySeason, getSelectedSeason } from './season-service.js';
 
 // Define the HTML template for the component using a template literal
 const template = document.createElement('template');
@@ -395,7 +391,15 @@ class PlayerStatsComponent extends HTMLElement {
             console.error("Player name attribute is missing!");
             return;
         }
+        this.boundSeasonChanged = () => this.loadPlayerStats();
+        window.addEventListener('season-changed', this.boundSeasonChanged);
         this.loadPlayerStats();
+    }
+
+    disconnectedCallback() {
+        if (this.boundSeasonChanged) {
+            window.removeEventListener('season-changed', this.boundSeasonChanged);
+        }
     }
 
     async loadPlayerStats() {
@@ -447,7 +451,7 @@ class PlayerStatsComponent extends HTMLElement {
 
             this.renderEloGraph(eloTrajectory);
             this.renderRecentMatches();
-            this.renderPerformanceSnapshot(longestStreaks, streakyness, this.playerName);
+            this.renderPerformanceSnapshot(longestStreaks, streakyness, cachedStats);
             this.renderEloFlowCharts(eloGainsLosses);
             this.renderWinLossTable(winLossRatios);
             this.renderTeammateWinLossTable(teammateRatios);
@@ -589,7 +593,7 @@ class PlayerStatsComponent extends HTMLElement {
      * Row 1: Wins/Losses, Longest Win Streak, Streakyness
      * Row 2: All Time Highest ELO, Golden Ratio, Comeback Percentage
      */
-    renderPerformanceSnapshot(streaks, streakyness, playerName) {
+    renderPerformanceSnapshot(streaks, streakyness, cachedStats) {
         const container = this.shadowRoot.getElementById('performanceContainer');
         if (!container) return;
 
@@ -597,10 +601,10 @@ class PlayerStatsComponent extends HTMLElement {
         let streakynessClass = '';
         if (streakynessScore > 1.1) streakynessClass = 'streaky';
         if (streakynessScore < 0.9) streakynessClass = 'consistent';
-        const highestElo = getHighestElo(playerName);
-        const goldenRatio = getGoldenRatio(playerName);
+        const highestElo = cachedStats?.highestElo ?? null;
+        const goldenRatio = cachedStats?.goldenRatio ?? null;
         const goldenRatioDisplay = goldenRatio !== null ? (goldenRatio * 100).toFixed(0) + '%' : '-';
-        const comebackPercentage = getComebackPercentage(playerName);
+        const comebackPercentage = cachedStats?.comebackPercentage ?? null;
         const comebackDisplay = comebackPercentage !== null ? (comebackPercentage * 100).toFixed(0) + '%' : '-';
 
         container.innerHTML = `
@@ -625,7 +629,7 @@ class PlayerStatsComponent extends HTMLElement {
             <div style="display: flex; justify-content: space-around;">
                 <div class="snapshot-item">
                     <h4>${highestElo !== null ? highestElo : '-'}</h4>
-                    <p>All Time Highest ELO</p>
+                    <p>Season Highest ELO</p>
                 </div>
                 <div class="snapshot-item">
                     <h4>${goldenRatioDisplay}</h4>
@@ -675,7 +679,10 @@ class PlayerStatsComponent extends HTMLElement {
         const container = this.shadowRoot.querySelector('.recent-matches-list');
         if (!container) return;
         container.innerHTML = '';
-        const relevantMatches = allMatches.filter(match => match.teamA.includes(this.playerName) || match.teamB.includes(this.playerName)).slice(0, 10);
+        const seasonMatches = filterMatchesBySeason(allMatches, getSelectedSeason());
+        const relevantMatches = seasonMatches
+            .filter(match => match.teamA.includes(this.playerName) || match.teamB.includes(this.playerName))
+            .slice(0, 10);
         if (relevantMatches.length === 0) { container.innerHTML = `<li class="match-item">No recent matches found for this player.</li>`; return; }
         relevantMatches.forEach(match => {
             const li = document.createElement('li');

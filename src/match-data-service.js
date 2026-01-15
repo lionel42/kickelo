@@ -1,5 +1,6 @@
 import { db, collection, onSnapshot } from './firebase-service.js';
 import { updateStatsCache } from './stats-cache-service.js';
+import { filterMatchesBySeason, getSelectedSeason } from './season-service.js';
 
 // This array will hold all match data, kept in sync by the listener.
 let allMatches = [];
@@ -48,7 +49,8 @@ export function initializeMatchesData() {
 
         // Update the stats cache with all player statistics
         // This computes all stats in a single efficient pass
-        updateStatsCache(allMatches);
+        const season = getSelectedSeason();
+        updateStatsCache(filterMatchesBySeason(allMatches, season), { season });
 
         // Dispatch a custom event to let your UI components know
         // that new data is available and they should re-render.
@@ -64,6 +66,10 @@ export function initializeMatchesData() {
  */
 export function resetMatchDataListener() {
     dataInitialized = false;
+}
+
+export function refreshSeasonStats(season = getSelectedSeason()) {
+    updateStatsCache(filterMatchesBySeason(allMatches, season), { season });
 }
 
 export { allMatches, isDataReady };

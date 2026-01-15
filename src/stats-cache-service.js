@@ -17,7 +17,7 @@ let lastComputeTime = 0;
  * This should be called when matches are updated.
  * @param {Array<Object>} matches - Array of match objects sorted by timestamp descending
  */
-export function updateStatsCache(matches) {
+export function updateStatsCache(matches, options = {}) {
     const startTime = performance.now();
     
     if (!matches || matches.length === 0) {
@@ -26,7 +26,7 @@ export function updateStatsCache(matches) {
         return;
     }
     
-    statsCache = computeAllPlayerStats(matches);
+    statsCache = computeAllPlayerStats(matches, options);
     isCacheValid = true;
     lastComputeTime = performance.now() - startTime;
     

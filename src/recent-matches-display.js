@@ -2,6 +2,7 @@
 import { allMatches } from './match-data-service.js';
 import { recentMatchesList, recentMatchesHeading } from './dom-elements.js';
 import { createTimelineWithLabel } from './match-timeline.js';
+import { filterMatchesBySeason, getSelectedSeason } from './season-service.js';
 
 
 function createMatchListItem(match) {
@@ -64,7 +65,8 @@ export function initializeRecentMatchesDisplay() {
 
     const updateDisplay = () => {
         // Since allMatches is pre-sorted newest-to-oldest, we just need the first N items.
-        const recent = allMatches.slice(0, n_matches);
+        const seasonMatches = filterMatchesBySeason(allMatches, getSelectedSeason());
+        const recent = seasonMatches.slice(0, n_matches);
         renderMatchesToDom(recent);
         console.log("Recent matches display updated.");
     };
@@ -75,6 +77,7 @@ export function initializeRecentMatchesDisplay() {
 
     // Listen for the custom event dispatched by the data service when matches are updated.
     window.addEventListener('matches-updated', updateDisplay);
+    window.addEventListener('season-changed', updateDisplay);
 
     console.log("Recent matches display initialized and listening for 'matches-updated' event.");
 }
