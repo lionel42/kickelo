@@ -1,6 +1,6 @@
 import { db, collection, doc, getDoc, setDoc, query, orderBy, getDocs } from './firebase-service.js';
 import { backdrop, modal, modalBody, activeTitle, showInactiveToggleModal, btnSave, btnCancel } from './dom-elements.js';
-import { getAllCachedStats } from './stats-cache-service.js';
+import { getRecentActivePlayers } from './match-data-service.js';
 
 const sessionDocRef = doc(db, 'meta', 'session'); // This ref should probably be here
 let showInactivePlayersInModal = false;
@@ -20,14 +20,14 @@ function updateInactiveToggleAppearance() {
     }
 }
 
-function renderPlayerCheckboxes(players, selectedPlayers, allStats) {
+function renderPlayerCheckboxes(players, selectedPlayers, recentActivePlayers) {
     modalBody.innerHTML = '';
 
+    const activeSet = new Set(recentActivePlayers);
     const visiblePlayers = showInactivePlayersInModal
         ? players
         : players.filter((name) => {
-            const stats = allStats[name];
-            return !stats || stats.isActive;
+            return activeSet.has(name);
         });
 
     if (visiblePlayers.length === 0) {
@@ -77,10 +77,10 @@ export async function showPlayerModal(triggerPairingCallback = null) {
     // Load saved active list
     const docSnap = await getDoc(sessionDocRef);
     const active = docSnap.exists() && docSnap.data().activePlayers || [];
-    const allStats = getAllCachedStats();
+    const recentActivePlayers = getRecentActivePlayers();
 
     const renderWithSelection = (selectedPlayers) => {
-        renderPlayerCheckboxes(players, selectedPlayers, allStats);
+        renderPlayerCheckboxes(players, selectedPlayers, recentActivePlayers);
         updateActiveCount();
     };
 
