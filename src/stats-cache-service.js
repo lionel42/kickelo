@@ -23,6 +23,12 @@ export function updateStatsCache(matches, options = {}) {
     if (!matches || matches.length === 0) {
         statsCache = { players: {}, teams: {}, matchDeltas: {} };
         isCacheValid = true;
+        lastComputeTime = performance.now() - startTime;
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('stats-cache-updated', {
+                detail: { playerCount: 0, teamCount: 0, computeTime: lastComputeTime }
+            }));
+        }
         return;
     }
     
