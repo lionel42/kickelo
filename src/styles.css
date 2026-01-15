@@ -666,20 +666,59 @@ button:hover {
   background: var(--hover-color);
 }
 #activeModal .body {
-  padding: 1rem;
+  padding: 0.6rem 0.75rem;
   overflow-y: auto;
   flex: 1;
-}
-#activeModal .body label {
   display: flex;
-  align-items: center;
-  margin-bottom: 0.5rem;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
 }
-#activeModal .body input[type="checkbox"] {
-  margin-right: 0.5rem;
+#activeModal .player-tile-row {
+  display: flex;
+  width: 100%;
+  /* justify-content: flex-end; */
 }
-#activeModal .body input[type="checkbox"]:checked {
-  accent-color: #6cabc2;
+#activeModal .player-tile {
+  width: 66.66%;
+  margin-left: 0;
+  /* margin-right: 0; */
+  align-self: flex-start;
+  text-align: center;
+  background: #3a3a3a;
+  color: var(--text-color-primary);
+  /* background: var(--dark-red); */
+  border: 1px solid #5b5b5b;
+  /* border: 1px solid var(--gray-light); */
+  /* border-radius: 999px; */
+  padding: 4px 10px;
+  font-size: 0.95em;
+  line-height: 1.2;
+  box-shadow: none;
+  transition: transform 130ms ease, background-color 130ms ease, color 130ms ease, border-color 130ms ease;
+  touch-action: pan-y;
+}
+#activeModal .player-tile:hover {
+  background: var(--hover-color);
+  color: var(--text-color-primary);
+}
+
+#activeModal .player-tile.inactive {
+
+  color: var(--text-color-secondary);
+  background: #3a3a3a;
+  border-color: #5b5b5b;
+}
+#activeModal .player-tile.selected {
+  background: var(--dark-blue);
+  color: var(--text-color-primary);
+  border-color: var(--accent-blue);
+  transform: translateX(50%);
+}
+@media (prefers-reduced-motion: reduce) {
+  #activeModal .player-tile {
+    transition: none;
+  }
 }
 #activeModal footer button {
   margin-right: 0.5rem;

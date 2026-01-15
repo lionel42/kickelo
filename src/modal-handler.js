@@ -20,7 +20,7 @@ function updateInactiveToggleAppearance() {
     }
 }
 
-function renderPlayerCheckboxes(players, selectedPlayers, recentActivePlayers) {
+function renderPlayerTiles(players, selectedPlayers, recentActivePlayers, onSelectionChange) {
     modalBody.innerHTML = '';
 
     const activeSet = new Set(recentActivePlayers);
@@ -40,15 +40,88 @@ function renderPlayerCheckboxes(players, selectedPlayers, recentActivePlayers) {
         return;
     }
 
+    const setTileSelected = (tile, isSelected) => {
+        tile.classList.toggle('selected', isSelected);
+        tile.setAttribute('aria-pressed', String(isSelected));
+    };
+
+    const toggleSelected = (name, tile) => {
+        if (selectedPlayers.has(name)) {
+            selectedPlayers.delete(name);
+            setTileSelected(tile, false);
+        } else {
+            selectedPlayers.add(name);
+            setTileSelected(tile, true);
+        }
+        onSelectionChange();
+    };
+
     visiblePlayers.forEach(name => {
-        const lbl = document.createElement('label');
-        const cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.value = name;
-        if (selectedPlayers.includes(name)) cb.checked = true;
-        lbl.appendChild(cb);
-        lbl.appendChild(document.createTextNode(name));
-        modalBody.appendChild(lbl);
+        const row = document.createElement('div');
+        row.className = 'player-tile-row';
+
+        const tile = document.createElement('button');
+        tile.type = 'button';
+        tile.className = 'player-tile';
+        tile.textContent = name;
+        tile.setAttribute('data-player', name);
+        tile.classList.toggle('inactive', !activeSet.has(name));
+        tile.setAttribute('role', 'button');
+        tile.setAttribute('tabindex', '0');
+        setTileSelected(tile, selectedPlayers.has(name));
+
+        let startX = 0;
+        let startY = 0;
+        let pointerActive = false;
+        let didSwipe = false;
+
+        tile.addEventListener('pointerdown', (event) => {
+            pointerActive = true;
+            didSwipe = false;
+            startX = event.clientX;
+            startY = event.clientY;
+            tile.setPointerCapture?.(event.pointerId);
+        });
+
+        tile.addEventListener('pointermove', (event) => {
+            if (!pointerActive) return;
+            const dx = event.clientX - startX;
+            const dy = event.clientY - startY;
+            if (Math.abs(dx) > 24 && Math.abs(dx) > Math.abs(dy)) {
+                if (dx > 24 && !selectedPlayers.has(name)) {
+                    selectedPlayers.add(name);
+                    setTileSelected(tile, true);
+                    onSelectionChange();
+                }
+                didSwipe = true;
+                event.preventDefault();
+            }
+        });
+
+        const endPointer = (event) => {
+            if (!pointerActive) return;
+            pointerActive = false;
+            if (!didSwipe) {
+                toggleSelected(name, tile);
+            }
+            try {
+                tile.releasePointerCapture?.(event.pointerId);
+            } catch (err) {
+            }
+        };
+
+        tile.addEventListener('pointerup', endPointer);
+        tile.addEventListener('pointercancel', endPointer);
+
+        tile.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                toggleSelected(name, tile);
+            }
+        });
+
+        row.appendChild(tile);
+        modalBody.appendChild(row);
     });
 }
 
@@ -60,13 +133,11 @@ export async function showPlayerModal(triggerPairingCallback = null) {
 
     const updateActiveCount = () => {
         if (!activeTitle) return;
-        const selectedCount = modalBody.querySelectorAll('input[type=checkbox]:checked').length;
-        activeTitle.textContent = `Select Players (${selectedCount})`;
+        activeTitle.textContent = `Select Players (${selectedPlayers.size})`;
     };
 
     const getSelectedPlayers = () => {
-        return [...modalBody.querySelectorAll('input[type=checkbox]:checked')]
-            .map(cb => cb.value);
+        return Array.from(selectedPlayers);
     };
 
     // Load all players
@@ -77,31 +148,28 @@ export async function showPlayerModal(triggerPairingCallback = null) {
     // Load saved active list
     const docSnap = await getDoc(sessionDocRef);
     const active = docSnap.exists() && docSnap.data().activePlayers || [];
+    const selectedPlayers = new Set(active);
     const recentActivePlayers = getRecentActivePlayers();
 
-    const renderWithSelection = (selectedPlayers) => {
-        renderPlayerCheckboxes(players, selectedPlayers, recentActivePlayers);
+    const renderWithSelection = () => {
+        renderPlayerTiles(players, selectedPlayers, recentActivePlayers, updateActiveCount);
         updateActiveCount();
     };
 
-    renderWithSelection(active);
+    renderWithSelection();
 
     if (showInactiveToggleModal) {
         updateInactiveToggleAppearance();
         showInactiveToggleModal.onclick = () => {
-            const selectedPlayers = getSelectedPlayers();
             showInactivePlayersInModal = !showInactivePlayersInModal;
             updateInactiveToggleAppearance();
-            renderWithSelection(selectedPlayers);
+            renderWithSelection();
         };
     }
 
-    modalBody.onchange = updateActiveCount;
-
     // Attach handler
     btnSave.onclick = async () => {
-        const checked = [...modalBody.querySelectorAll('input[type=checkbox]:checked')]
-            .map(cb => cb.value);
+        const checked = getSelectedPlayers();
         await setDoc(sessionDocRef, { activePlayers: checked });
         backdrop.style.display = 'none';
         if (triggerPairingCallback) {
