@@ -286,6 +286,12 @@
           <input type="checkbox" id="positionsConfirmedCheckbox" />
         </label>
       </div>
+      <div id="rankedMatchContainer" class="position-confirmation">
+        <label>
+          <span>Ranked match</span>
+          <input type="checkbox" id="rankedMatchCheckbox" checked />
+        </label>
+      </div>
       <button id="toggleLiveMode" type="button">Start live mode</button>
     </div>
       <span id="liveModeStatus" style="font-size: 0.9em; color: #888;"></span>
@@ -318,7 +324,7 @@
     <button id="showInactiveToggle" class="button">Show inactive players</button>
     <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
       <span style="white-space: nowrap;">Sort by:</span>
-      <select id="sortBySelect" style="flex: 1; width: 100%;">
+      <select id="sortBySelect" class="sortBySelect" style="flex: 1; width: 100%;">
         <option value="elo">ELO Rating</option>
         <option value="highestElo">Highest ELO</option>
         <option value="winRate">Win Rate</option>
@@ -339,7 +345,7 @@
     </div>
     <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
       <span style="white-space: nowrap;">Season:</span>
-      <select id="seasonSelect" style="flex: 1; width: 100%;"></select>
+      <select id="seasonSelect" class="sortBySelect" style="flex: 1; width: 100%;"></select>
     </div>
   </div>
 

@@ -49,15 +49,15 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const storage = getStorage(app);
 
-// if (import.meta.env.DEV) {
-//     // Firestore emulator
-//     connectFirestoreEmulator(db, '127.0.0.1', 7070);
-//     // Auth emulator
-//     const auth = getAuth(app);
-//     connectAuthEmulator(auth, 'http://127.0.0.1:9099');
-//     // Storage emulator
-//     connectStorageEmulator(storage, '127.0.0.1', 9199);
-// }
+if (import.meta.env.DEV) {
+    // Firestore emulator
+    connectFirestoreEmulator(db, '127.0.0.1', 7070);
+    // Auth emulator
+    const auth = getAuth(app);
+    connectAuthEmulator(auth, 'http://127.0.0.1:9099');
+    // Storage emulator
+    connectStorageEmulator(storage, '127.0.0.1', 9199);
+}
 
 // Export db and all necessary Firestore functions
 export {

@@ -33,14 +33,14 @@ const SEASONS = [
         id: 'season-1',
         name: 'Season 1 (June 2025 - Jan 2026)',
         start: makeLocalDate(2025, 6, 1),
-        end: makeLocalDate(2026, 1, 3)
+        end: makeLocalDate(2026, 1, 15)
     }),
     new Season({
         id: 'season-2',
         name: 'Season 2',
-        start: makeLocalDate(2026, 1, 14),
+        start: makeLocalDate(2026, 1, 16),
         end: makeLocalDate(2026, 12, 31),
-        kFactor: 100
+        // kFactor: 100
     }),
     new Season({
         id: 'all-time',

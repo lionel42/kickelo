@@ -1,4 +1,4 @@
-import { getCachedStats, isCacheReady } from './stats-cache-service.js';
+import { getCachedStats, isCacheReady, getSeasonMatchDelta } from './stats-cache-service.js';
 import { allMatches } from './match-data-service.js';
 import { MAX_GOALS } from './constants.js';
 import Chart from "chart.js/auto";
@@ -696,7 +696,13 @@ class PlayerStatsComponent extends HTMLElement {
             const opponentGoals = isPlayerInTeamA ? (match.goalsB ?? '-') : (match.goalsA ?? '-');
             const playerTeamHtml = isPlayerInTeamA ? teamAPlayers : teamBPlayers;
             const opponentTeamHtml = isPlayerInTeamA ? teamBPlayers : teamAPlayers;
-            const changeSpanText = playerWon ? `<span style="color: #86e086">▲ ${Math.round(match.eloDelta)}</span>` : `<span style="color: #ff7b7b">▼ ${Math.round(Math.abs(match.eloDelta))}</span>`;
+            const seasonDelta = getSeasonMatchDelta(match);
+            const deltaValue = seasonDelta ?? match.eloDelta ?? 0;
+            const changeSpanText = match.ranked === false
+                ? `<span style="color: gray">(unranked)</span>`
+                : (playerWon
+                    ? `<span style="color: #86e086">▲ ${Math.round(deltaValue)}</span>`
+                    : `<span style="color: #ff7b7b">▼ ${Math.round(Math.abs(deltaValue))}</span>`);
             // Render match info and ELO change in a flex row
             const infoRow = document.createElement('div');
             infoRow.className = 'match-info-row';

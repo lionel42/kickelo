@@ -7,8 +7,8 @@
 
 import { computeAllPlayerStats } from './player-stats-batch.js';
 
-// Cache for all stats (players + teams)
-let statsCache = { players: {}, teams: {} };
+// Cache for all stats (players + teams + match deltas)
+let statsCache = { players: {}, teams: {}, matchDeltas: {} };
 let isCacheValid = false;
 let lastComputeTime = 0;
 
@@ -21,7 +21,7 @@ export function updateStatsCache(matches, options = {}) {
     const startTime = performance.now();
     
     if (!matches || matches.length === 0) {
-        statsCache = { players: {}, teams: {} };
+        statsCache = { players: {}, teams: {}, matchDeltas: {} };
         isCacheValid = true;
         return;
     }
@@ -103,6 +103,25 @@ export function getAllTeamEloStats() {
     return statsCache.teams || {};
 }
 
+function buildMatchKey(match) {
+    if (!match) return null;
+    if (match.id) return match.id;
+    const teamA = Array.isArray(match.teamA) ? match.teamA.join(',') : '';
+    const teamB = Array.isArray(match.teamB) ? match.teamB.join(',') : '';
+    if (typeof match.timestamp !== 'number') return null;
+    return `${match.timestamp}-${teamA}-${teamB}`;
+}
+
+export function getSeasonMatchDelta(match) {
+    if (!isCacheValid) {
+        console.warn('Stats cache not initialized. Call updateStatsCache first.');
+        return null;
+    }
+    const key = buildMatchKey(match);
+    if (!key) return null;
+    return statsCache.matchDeltas?.[key] ?? null;
+}
+
 /**
  * Check if the cache is valid/initialized.
  * @returns {boolean} True if cache is valid
@@ -116,7 +135,7 @@ export function isCacheReady() {
  */
 export function invalidateCache() {
     isCacheValid = false;
-    statsCache = { players: {}, teams: {} };
+    statsCache = { players: {}, teams: {}, matchDeltas: {} };
 }
 
 /**

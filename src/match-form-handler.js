@@ -9,7 +9,8 @@ import {
     teamAgoalsInput, teamBgoalsInput, submitMatchBtn,
     toggleLiveMode, liveMatchPanel, btnBlueScored, btnRedScored, goalTimeline, liveModeStatus,
     vibrationSeismograph, uploadIndicator,
-    positionConfirmationContainer, positionsConfirmedCheckbox
+    positionConfirmationContainer, positionsConfirmedCheckbox,
+    rankedMatchContainer, rankedMatchCheckbox
 } from './dom-elements.js';
 import { MAX_GOALS } from './constants.js';
 import { evaluateLastSuggestion, clearLastSuggestion } from './pairing-service.js';
@@ -152,6 +153,7 @@ export function setupMatchForm() {
     const pairingMetadata = buildPairingMetadata(teamA, teamB);
     console.log("Pairing metadata for submitted match:", pairingMetadata);
     const positionsConfirmedState = getPositionConfirmationState();
+    const rankedMatchState = getRankedMatchState();
 
 
         // Update players' ELO and games count
@@ -182,6 +184,7 @@ export function setupMatchForm() {
                 timestamp: serverTimestamp(),
                 pairingMetadata,
                 positionsConfirmed: positionsConfirmedState,
+                ranked: rankedMatchState ?? true,
                 ...(liveMode && goalLog.length > 0 ? { goalLog: goalLog.slice(), matchDuration: Date.now() - matchStartTime } : {})
             };
 
@@ -236,6 +239,9 @@ export function resetMatchForm() {
     teamBgoalsInput.value = "0";
     stopLiveMatchTimer(); // Also stop timer on reset
     updatePositionConfirmationUI();
+    if (rankedMatchCheckbox) {
+        rankedMatchCheckbox.checked = true;
+    }
 }
 
 const swapRedTeamHitbox = document.getElementById("swap_red_team_hitbox")
@@ -694,6 +700,12 @@ if (positionsConfirmedCheckbox) {
     });
 }
 
+if (rankedMatchCheckbox) {
+    rankedMatchCheckbox.addEventListener('change', () => {
+        updateSubmitMatchButtonState();
+    });
+}
+
 function areAllRolesFilled() {
     const selects = [teamA1Select, teamA2Select, teamB1Select, teamB2Select];
     return selects.every(select => Boolean(getFilledRoleValue(select)));
@@ -707,6 +719,10 @@ function isPositionConfirmationChecked() {
     return positionsConfirmedCheckbox && positionsConfirmedCheckbox.checked;
 }
 
+function isRankedMatchChecked() {
+    return rankedMatchCheckbox && rankedMatchCheckbox.checked;
+}
+
 function updatePositionConfirmationUI() {
     if (!positionConfirmationContainer || !positionsConfirmedCheckbox) return;
     const shouldShow = areAllRolesFilled();
@@ -714,6 +730,13 @@ function updatePositionConfirmationUI() {
     positionConfirmationContainer.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
     if (!shouldShow) {
         positionsConfirmedCheckbox.checked = false;
+    }
+    if (rankedMatchContainer && rankedMatchCheckbox) {
+        rankedMatchContainer.classList.toggle('visible', shouldShow);
+        rankedMatchContainer.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
+        if (shouldShow && rankedMatchCheckbox.checked === false) {
+            rankedMatchCheckbox.checked = true;
+        }
     }
     updateSubmitMatchButtonState();
 }
@@ -747,6 +770,13 @@ function getPositionConfirmationState() {
     const isVisible = positionConfirmationContainer.classList.contains('visible');
     if (!isVisible) return null;
     return Boolean(isPositionConfirmationChecked());
+}
+
+function getRankedMatchState() {
+    if (!rankedMatchContainer) return null;
+    const isVisible = rankedMatchContainer.classList.contains('visible');
+    if (!isVisible) return null;
+    return Boolean(isRankedMatchChecked());
 }
 
 export function notifyRolesChanged(team = null) {

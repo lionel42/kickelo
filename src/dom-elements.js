@@ -30,6 +30,8 @@ const vibrationSeismograph = document.getElementById('vibrationSeismograph');
 const uploadIndicator = document.getElementById('uploadIndicator');
 const positionConfirmationContainer = document.getElementById('positionConfirmationContainer');
 const positionsConfirmedCheckbox = document.getElementById('positionsConfirmedCheckbox');
+const rankedMatchContainer = document.getElementById('rankedMatchContainer');
+const rankedMatchCheckbox = document.getElementById('rankedMatchCheckbox');
 
 
 export {
@@ -60,7 +62,9 @@ export {
     vibrationSeismograph,
     uploadIndicator,
     positionConfirmationContainer,
-    positionsConfirmedCheckbox
+    positionsConfirmedCheckbox,
+    rankedMatchContainer,
+    rankedMatchCheckbox
 };
 
 // export const playerStatsBackdrop = document.getElementById('playerStatsBackdrop');

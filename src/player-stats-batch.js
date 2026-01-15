@@ -25,6 +25,7 @@ function getDayKey(timestamp) {
 export function computeAllPlayerStats(matches, options = {}) {
     const startTime = performance.now();
     const seasonKFactor = options.season?.kFactor;
+    const matchDeltas = {};
     
     // Extract all unique player IDs from matches
     const playerSet = new Set();
@@ -155,6 +156,8 @@ export function computeAllPlayerStats(matches, options = {}) {
         const expectedA = expectedScore(teamAAvgElo, teamBAvgElo);
         const scoreA = match.winner === 'A' ? 1 : 0;
         const matchEloDelta = Math.abs(updateRating(0, expectedA, scoreA, seasonKFactor));
+        const matchKey = match.id || `${match.timestamp}-${match.teamA?.join(',') ?? ''}-${match.teamB?.join(',') ?? ''}`;
+        matchDeltas[matchKey] = matchEloDelta;
         
         // Count how many players on each team are breaking opponent win streaks of 5 or more
         const streakBreaksAgainstA = match.teamB.reduce((count, pid) => {
@@ -485,7 +488,7 @@ export function computeAllPlayerStats(matches, options = {}) {
     const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(3);
     console.log(`computeAllPlayerStats: total time taken = ${elapsedSeconds} seconds`);
     console.debug({ players: stats, teams: teamStats });
-    return { players: stats, teams: teamStats };
+    return { players: stats, teams: teamStats, matchDeltas };
 }
 
 function updateOpenSkillRatingsForMatch(stats, match) {

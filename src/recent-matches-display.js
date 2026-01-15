@@ -3,6 +3,7 @@ import { allMatches } from './match-data-service.js';
 import { recentMatchesList, recentMatchesHeading } from './dom-elements.js';
 import { createTimelineWithLabel } from './match-timeline.js';
 import { filterMatchesBySeason, getSelectedSeason } from './season-service.js';
+import { getSeasonMatchDelta } from './stats-cache-service.js';
 
 
 function createMatchListItem(match) {
@@ -20,7 +21,12 @@ function createMatchListItem(match) {
     const winnerGoals = match.winner === "A" ? goalsA : goalsB;
     const loserGoals = match.winner === "A" ? goalsB : goalsA;
 
-    li.innerHTML = `${winner} ${winnerGoals}:${loserGoals} ${loser} <span style="font-size: 0.9em; color: gray;">(Elo Δ: ${match.eloDelta || 0})</span>`;
+    const seasonDelta = getSeasonMatchDelta(match);
+    const deltaDisplay = seasonDelta ?? match.eloDelta ?? 0;
+    const deltaLabel = match.ranked === false
+        ? '(unranked)'
+        : `(Elo Δ: ${deltaDisplay})`;
+    li.innerHTML = `${winner} ${winnerGoals}:${loserGoals} ${loser} <span style="font-size: 0.9em; color: gray;">${deltaLabel}</span>`;
     // If live match, add timeline
     if (Array.isArray(match.goalLog) && match.goalLog.length > 0) {
         const timelineWithLabel = createTimelineWithLabel(match.goalLog);
