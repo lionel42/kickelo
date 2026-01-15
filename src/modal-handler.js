@@ -131,9 +131,20 @@ export async function showPlayerModal(triggerPairingCallback = null) {
     modal.style.display = 'none'; // Hide modal body for now to prevent flickering
     modalBody.innerHTML = ''; // Clear previous content
 
+    const MIN_ACTIVE_PLAYERS = 4;
+    let selectedPlayers = new Set();
+
+    const updateConfirmState = () => {
+        if (!btnSave) return;
+        const shouldDisable = selectedPlayers.size < MIN_ACTIVE_PLAYERS;
+        btnSave.disabled = shouldDisable;
+        btnSave.setAttribute('aria-disabled', String(shouldDisable));
+    };
+
     const updateActiveCount = () => {
         if (!activeTitle) return;
         activeTitle.textContent = `Select Players (${selectedPlayers.size})`;
+        updateConfirmState();
     };
 
     const getSelectedPlayers = () => {
@@ -148,7 +159,7 @@ export async function showPlayerModal(triggerPairingCallback = null) {
     // Load saved active list
     const docSnap = await getDoc(sessionDocRef);
     const active = docSnap.exists() && docSnap.data().activePlayers || [];
-    const selectedPlayers = new Set(active);
+    selectedPlayers = new Set(active);
     const recentActivePlayers = getRecentActivePlayers();
 
     const renderWithSelection = () => {
@@ -157,6 +168,7 @@ export async function showPlayerModal(triggerPairingCallback = null) {
     };
 
     renderWithSelection();
+    updateConfirmState();
 
     if (showInactiveToggleModal) {
         updateInactiveToggleAppearance();
@@ -169,6 +181,9 @@ export async function showPlayerModal(triggerPairingCallback = null) {
 
     // Attach handler
     btnSave.onclick = async () => {
+        if (btnSave.disabled) {
+            return;
+        }
         const checked = getSelectedPlayers();
         await setDoc(sessionDocRef, { activePlayers: checked });
         backdrop.style.display = 'none';
