@@ -14,7 +14,7 @@ service cloud.firestore {
     }
 
     function isNotAnonymous() {
-      return request.auth.token.sign_in_provider != 'anonymous';
+      return request.auth.token.firebase.sign_in_provider != 'anonymous';
     }
 
     function canAccess() {

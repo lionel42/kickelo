@@ -152,27 +152,49 @@ if (isPauseDay()) {
         });
     
     // onAuthStateChanged is the central controller for the app's online/offline state.
-        onAuthStateChanged(auth, user => {
-            if (user) {
-                if (user.isAnonymous || (user.email && user.email !== SHARED_EMAIL)) {
-                    signOut(auth).catch((error) => {
-                        console.warn('Failed to sign out non-shared user:', error);
-                    });
-                    showPasswordGate();
-                    return;
-                }
-        // User is signed in or their token was just refreshed.
-        // First, clean up any old listeners that might have failed.
-        goOffline();
-        // Then, start fresh with the new, valid user session.
-        goOnline();
-                hidePasswordGate();
-      } else {
-        // User is signed out.
-        goOffline();
+        onAuthStateChanged(auth, async (user) => {
+            console.log('[auth] state changed:', {
+                hasUser: Boolean(user),
+                email: user?.email ?? null,
+                isAnonymous: user?.isAnonymous ?? null
+            });
+            if (!user) {
+                goOffline();
                 showPasswordGate();
-      }
-    });
+                return;
+            }
+
+            let providerId = null;
+            try {
+                const tokenResult = await user.getIdTokenResult(true);
+                providerId = tokenResult?.signInProvider ?? null;
+                console.log('[auth] token provider:', providerId);
+            } catch (error) {
+                console.warn('[auth] failed to refresh token:', error);
+            }
+
+            if (user.isAnonymous || (user.email && user.email !== SHARED_EMAIL) || providerId === 'anonymous') {
+                signOut(auth).catch((error) => {
+                    console.warn('Failed to sign out non-shared user:', error);
+                });
+                goOffline();
+                showPasswordGate();
+                return;
+            }
+
+            try {
+                goOffline();
+                goOnline();
+                hidePasswordGate();
+            } catch (error) {
+                console.warn('Failed to refresh auth token:', error);
+                signOut(auth).catch((signOutError) => {
+                    console.warn('Failed to sign out after token error:', signOutError);
+                });
+                goOffline();
+                showPasswordGate('Please re-enter the password.');
+            }
+        });
 
     // Setup event listeners for global actions
     document.getElementById('btnSuggest').onclick = () => {
