@@ -13,6 +13,14 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isNotAnonymous() {
+      return request.auth.token.sign_in_provider != 'anonymous';
+    }
+
+    function canAccess() {
+      return isSignedIn() && isNotAnonymous();
+    }
+
     // =====================================================================
     // Collection Rules
     // =====================================================================
@@ -21,12 +29,12 @@ service cloud.firestore {
     match /players/{playerName} {
 
       // READ: Anyone using the app can read player profiles and leaderboards.
-      allow get, list: if isSignedIn();
+      allow get, list: if canAccess();
 
       // CREATE: A new player can be created by any signed-in user,
       // but we enforce that they start with the default ELO and game count.
       // Note: STARTING_ELO = 1500 (defined in src/constants.js)
-      allow create: if isSignedIn()
+      allow create: if canAccess()
                     && request.resource.data.name == playerName
                     && request.resource.data.elo == 1500
                     && request.resource.data.games == 0
@@ -34,7 +42,7 @@ service cloud.firestore {
 
       // UPDATE: Allow updates only if the user is signed in and provides valid data types.
       // This prevents users from corrupting their data, e.g., setting ELO to a string.
-      allow update: if isSignedIn()
+      allow update: if canAccess()
                     && request.resource.data.name == resource.data.name // Player name cannot be changed
                     && request.resource.data.elo is number
                     && request.resource.data.games is number;
@@ -44,11 +52,11 @@ service cloud.firestore {
     match /matches/{matchId} {
 
       // READ: Anyone using the app can read the match history for stats.
-      allow get, list: if isSignedIn();
+      allow get, list: if canAccess();
 
       // CREATE: Anyone can log a new match, but the data must be valid.
       // This is our most important validation rule.
-      allow create: if isSignedIn()
+      allow create: if canAccess()
                     && request.resource.data.teamA is list
                     && request.resource.data.teamA.size() <= 2 // Allow 1v1 or 2v2
                     && request.resource.data.teamB is list
@@ -62,7 +70,7 @@ service cloud.firestore {
 
       // Allow only vibrationLogPath and hasVibrationLog to be changed
 
-      allow update: if isSignedIn()
+      allow update: if canAccess()
         && (
           // All fields except vibrationLogPath and hasVibrationLog must be unchanged
           request.resource.data.diff(resource.data).changedKeys().hasOnly(['vibrationLogPath', 'hasVibrationLog'])
@@ -80,7 +88,7 @@ service cloud.firestore {
     match /meta/{docId} {
       // Allow any signed-in user to read and write session data,
       // like the list of active players for pairing suggestions.
-      allow read, write: if isSignedIn();
+      allow read, write: if canAccess();
     }
   }
 }
