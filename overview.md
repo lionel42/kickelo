@@ -19,7 +19,7 @@ The app is currently functional, with real-time updates via Firestore, a modern 
 
 - **Frontend:** Vanilla JavaScript (ES modules), HTML, CSS (custom properties for theming)
 - **Backend/Database:** Firebase Firestore (real-time listeners, offline persistence)
-- **Authentication:** Firebase Auth (anonymous sign-in)
+- **Authentication:** Firebase Auth (shared email/password gate)
 - **State Management:** Centralized in-memory arrays (allPlayers, allMatches) synced with Firestore
 - **UI:** DOM manipulation, custom modals, Chart.js for stats
 - **Data Flow:**
@@ -68,6 +68,10 @@ The app is currently functional, with real-time updates via Firestore, a modern 
 - Season selector in leaderboard settings to recompute all stats per season
 - Recent matches with timelines
 - Player stats modal with charts and tables
+
+## Access Control
+- The app uses a shared Firebase Auth account to gate access via a password prompt.
+- Firestore/Storage rules require authentication, so data is inaccessible without sign-in.
 
 ## Extensibility
 - Modular codebase: Each feature is in its own file

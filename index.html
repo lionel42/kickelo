@@ -393,6 +393,16 @@
       <img id="pauseImage" src="assets/pause-image.png" alt="Pause" class="pause-image" />
     </div>
   </div>
+
+  <!-- Password gate overlay -->
+  <div id="passwordGate" class="password-gate" style="display: none;">
+    <div class="password-modal">
+      <h2>Enter password</h2>
+      <input id="passwordInput" type="password" placeholder="Password" autocomplete="current-password" />
+      <button id="passwordSubmit" type="button">Unlock</button>
+      <div id="passwordError" class="password-error" aria-live="polite"></div>
+    </div>
+  </div>
 </body>
 </html>
 

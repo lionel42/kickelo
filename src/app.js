@@ -13,13 +13,14 @@ import { PAUSE_DATES, PAUSE_MESSAGE, PAUSE_IMAGE_PATH } from './constants.js';
 import { getSelectedSeason } from './season-service.js';
 
 import { auth } from './firebase-service.js';
-import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, signOut } from 'firebase/auth';
 import {initializePlayersData, resetPlayerDataListener} from "./player-data-service.js";
 
 // --- App State ---
 // This will hold the unsubscribe functions for our listeners
 let activeListeners = [];
 let isAppOnline = false;
+const SHARED_EMAIL = 'apps.imagirom@gmail.com';
 
 /**
  * Checks if today is a pause day.
@@ -95,6 +96,48 @@ function goOffline() {
     resetPlayerDataListener();
 }
 
+function showPasswordGate(message = '') {
+    const gate = document.getElementById('passwordGate');
+    const error = document.getElementById('passwordError');
+    if (error) error.textContent = message;
+    if (gate) gate.style.display = 'flex';
+}
+
+function hidePasswordGate() {
+    const gate = document.getElementById('passwordGate');
+    if (gate) gate.style.display = 'none';
+}
+
+function setupPasswordGate() {
+    const passwordInput = document.getElementById('passwordInput');
+    const passwordSubmit = document.getElementById('passwordSubmit');
+    const error = document.getElementById('passwordError');
+    if (!passwordInput || !passwordSubmit) return;
+
+    const attemptSignIn = async () => {
+        const password = passwordInput.value;
+        if (!password) {
+            if (error) error.textContent = 'Please enter the password.';
+            return;
+        }
+        if (error) error.textContent = '';
+        try {
+            await signInWithEmailAndPassword(auth, SHARED_EMAIL, password);
+            passwordInput.value = '';
+        } catch (signInError) {
+            console.error('Password sign-in failed:', signInError);
+            if (error) error.textContent = 'Incorrect password.';
+        }
+    };
+
+    passwordSubmit.addEventListener('click', attemptSignIn);
+    passwordInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            attemptSignIn();
+        }
+    });
+}
+
 // --- Main Application Logic ---
 
 // Check if today is a pause day
@@ -103,23 +146,31 @@ if (isPauseDay()) {
     showPauseScreen();
 } else {
     hidePauseScreen();
+        setupPasswordGate();
+        setPersistence(auth, browserLocalPersistence).catch((error) => {
+                console.warn('Failed to set auth persistence:', error);
+        });
     
     // onAuthStateChanged is the central controller for the app's online/offline state.
-    onAuthStateChanged(auth, user => {
-      if (user) {
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                if (user.isAnonymous || (user.email && user.email !== SHARED_EMAIL)) {
+                    signOut(auth).catch((error) => {
+                        console.warn('Failed to sign out non-shared user:', error);
+                    });
+                    showPasswordGate();
+                    return;
+                }
         // User is signed in or their token was just refreshed.
         // First, clean up any old listeners that might have failed.
         goOffline();
         // Then, start fresh with the new, valid user session.
         goOnline();
+                hidePasswordGate();
       } else {
         // User is signed out.
         goOffline();
-        // Attempt to sign in again. If it succeeds, this observer will fire again with a user.
-        signInAnonymously(auth).catch(error => {
-          console.error("Could not sign in anonymously:", error);
-          // You could show a "Retry Connection" button to the user here.
-        });
+                showPasswordGate();
       }
     });
 

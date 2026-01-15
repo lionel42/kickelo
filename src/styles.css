@@ -721,6 +721,65 @@ button:hover {
     visibility: visible;
 }
 
+.password-gate {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+}
+
+.password-modal {
+  background: #454545;
+  border-radius: 10px;
+  padding: 20px;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.password-modal h2 {
+  margin: 0;
+  font-size: 1.4em;
+  color: var(--text-color-primary);
+}
+
+.password-hint {
+  margin: 0;
+  color: var(--text-color-secondary);
+  font-size: 0.95em;
+}
+
+.password-modal input {
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: #333333;
+  color: var(--text-color-primary);
+  font-size: 1em;
+}
+
+.password-modal button {
+  width: 100%;
+  background: var(--accent-blue);
+  color: var(--gray-darkest);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.password-error {
+  min-height: 18px;
+  color: #ff7b7b;
+  font-size: 0.9em;
+}
+
 player-stats-component {
     display: block; /* Custom elements are inline by default, change to block */
     height: 100%; /* Ensure it takes up the full height of the backdrop */
