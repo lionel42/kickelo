@@ -74,20 +74,9 @@ firebase emulators:start
 
 One‑off admin scripts live in `admin/` and use `firebase-admin`. They require service account credentials provided via environment (for example, `GOOGLE_APPLICATION_CREDENTIALS`). Do not commit keys or backups to the repository. Run these scripts carefully against the correct project.
 
-## Public Release Checklist
-
-- Remove any service account keys and local Firestore backups before publishing.
-- Ensure `firestore.rules` and `storage.rules` prevent public read/write.
-- Rotate any credentials that were ever committed.
-- Keep admin scripts credential‑free (use environment variables).
-- Review logs/backups for sensitive data before sharing.
-
 ## Project Docs
 
+These were created by and used mainly for use with AI tools.
 - `overview.md`: Current architecture and feature overview
 - `BATCH_STATS.md`: Batch stats computation details
 - `PAUSE_FEATURE.md`, `vibration_tracking.md`, `waiting_karma.md`: Feature docs
-
-## License
-
-Private project (no license specified).
