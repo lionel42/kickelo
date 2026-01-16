@@ -12,7 +12,9 @@ dist
 dist-ssr
 *.local
 
-admin/backups/*
+admin/backups/
+admin/node_modules/
+admin/serviceAccountKey.json
 
 # Editor directories and files
 .vscode/*
@@ -24,5 +26,5 @@ admin/backups/*
 *.njsproj
 *.sln
 *.sw?
-./firebase_emulator_cache
+firebase_emulator_cache/
 .firebase

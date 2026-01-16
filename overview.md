@@ -2,99 +2,91 @@
 
 ## Purpose and Current Status
 
-Kickelo is a web application for tracking foosball (table soccer) matches using Elo (overall, offense, defense, and team variants) and OpenSkill rating systems. It allows users to:
-- Record matches (with live mode and manual entry)
-- Track player statistics and leaderboards (Elo, offense/defense Elo, offense-vs-defense delta, team Elo, and OpenSkill views)
-- Suggest fair pairings for games
-- View recent matches and detailed player stats
+Kickelo is a web application for tracking foosball (table soccer) matches with Elo (overall + role-based offense/defense) and OpenSkill ratings. It supports:
+- Manual and live match entry (with optional goal timelines)
+- Rich player stats, leaderboards, and streak/badge indicators
+- Season-aware stats recomputation and daily deltas
+- Suggested 2v2 pairings with waiting‑karma logic
+- 1v1 and 2v2 matches across all stats and history views
 
-The app is currently functional, with real-time updates via Firestore, a modern modular JavaScript codebase, and a responsive UI. It supports both live and manual match entry, and provides rich player and match analytics.
-
-**As of 2025-08, Kickelo supports both 2v2 and 1v1 matches.**
-- The match form allows the same player to be selected for both positions on a team, or just one field to be filled, enabling 1v1 matches.
-- All stats, leaderboards, and match history are compatible with both 1v1 and 2v2 matches.
-- The pairing suggestion feature only suggests 2v2 pairings, but is robust to 1v1 matches in the match history.
+The app is production‑ready, with real‑time Firestore updates, a modular ES‑module frontend, and a responsive UI.
 
 ## Technical Overview
 
-- **Frontend:** Vanilla JavaScript (ES modules), HTML, CSS (custom properties for theming)
-- **Backend/Database:** Firebase Firestore (real-time listeners, offline persistence)
-- **Authentication:** Firebase Auth (shared email/password gate)
-- **State Management:** Centralized in-memory arrays (allPlayers, allMatches) synced with Firestore
-- **UI:** DOM manipulation, custom modals, Chart.js for stats
-- **Data Flow:**
-  - On login, listeners attach to Firestore for players and matches
-  - Data is cached in arrays, and custom events trigger UI updates
-  - All user actions (match submission, player creation, etc.) update Firestore, which then updates the UI via listeners
+- **Frontend:** Vanilla JavaScript (ES modules) built with Vite, HTML, CSS (custom properties)
+- **Backend/Database:** Firebase Firestore with multi‑tab IndexedDB persistence
+- **Authentication:** Firebase Auth with a shared email + password gate
+- **Storage:** Firebase Storage for optional vibration logs
+- **Hosting:** Firebase Hosting (Vite build outputs to `dist`)
+- **State Management:** In‑memory caches (`allPlayers`, `allMatches`, stats cache) refreshed via Firestore listeners
+- **UI:** DOM manipulation, modals, Chart.js for charts
 
-## File-by-File Functionality
+## App Flow
 
-### Core App Logic
-- **app.js**: Main entry point. Handles authentication, attaches/detaches Firestore listeners, initializes UI components, and sets up global event handlers.
-- **constants.js**: Shared constants (e.g., MAX_GOALS).
-- **styles.css**: Global and component-level styles, including color theming and responsive layout.
+1. Auth gate is shown until the shared password is accepted.
+2. On login, Firestore listeners attach for players and matches.
+3. Cached arrays update, triggering UI refreshes and stats recomputation.
+4. Match submissions update player Elo, write match records, and optionally upload vibration logs.
 
-### Data Services
-- **firebase-service.js**: Firebase initialization, exports Firestore and Auth utilities, supports emulator for development.
-- **player-data-service.js**: Real-time listener for players collection. Maintains allPlayers array and dispatches 'players-updated' events.
-- **match-data-service.js**: Real-time listener for matches collection. Maintains allMatches array and dispatches 'matches-updated' events.
+## Core Features
 
-### UI and DOM
-- **dom-elements.js**: Centralized references to all key DOM elements (inputs, buttons, modals, etc.).
-- **modal-handler.js**: Handles player selection modal, including loading players, saving active players, and triggering pairing suggestions.
-- **player-manager.js**: Ensures player existence in Firestore, populates player dropdowns, and handles new player creation.
-- **match-form-handler.js**: Handles match form submission (manual and live), validates input, updates player ratings, and records matches in Firestore. Supports both 1v1 and 2v2 matches.
-- **leaderboard-display.js**: Renders the leaderboard from allPlayers, shows streaks and daily Elo changes, and handles player click events.
-- **recent-matches-display.js**: Renders a list of recent matches, including goal timelines if available. Compatible with both 1v1 and 2v2 matches.
-- **player-stats-component.js**: Custom modal/component for detailed player stats (Elo trajectory, win/loss ratios, streaks, etc.), uses Chart.js.
-- **match-timeline.js**: Utilities for rendering SVG timelines of match goal logs.
-
-### Analytics and Pairing
-- **player-stats-service.js**: Computes player stats (Elo history, win/loss ratios, streaks, etc.) from cached data. Fully compatible with both 1v1 and 2v2 matches.
-- **pairing-service.js**: Suggests fair pairings based on recent play history, session logic, and co/opp counts. Only suggests 2v2 pairings, but is robust to 1v1 matches in the match history.
-- **elo-service.js**: Elo rating calculation utilities (expected score, rating update).
+- **Match entry:** Manual scoring or live mode with goal log and duration tracking.
+- **1v1 + 2v2 support:** Team sizes must match; the same player can be selected twice for 1v1.
+- **Role‑based Elo:** Offense/defense Elo only updates when positions are confirmed.
+- **Ranked matches:** Matches can be flagged as ranked/unranked.
+- **Pause days:** Configurable date list to pause the app with an overlay.
+- **Pairing suggestions:** Session‑aware 2v2 suggestions using recency + waiting‑karma weighting.
 
 ## Data Model
-- **Players**: `{ id, name, elo, games }`
-- **Matches**: `{ id, teamA, teamB, winner, goalsA, goalsB, eloDelta, timestamp, goalLog?, matchDuration?, vibrationLogPath? }`
-  - `teamA` and `teamB` are arrays of player names, length 1 (1v1) or 2 (2v2).
-  - `pairingMetadata` records how the teams were formed: `{ source: 'manual' | 'suggested', suggestedAt?, waitingPlayers? }`. When a suggested pairing is played (or a recent suggestion is tweaked manually), `waitingPlayers` stores who was left out at suggestion time for future “waiting karma” logic.
 
-## UI Features
-- SVG foosball table with overlayed player selectors
-- Live mode with goal logging and timer
-- Modal for selecting active players
-- Leaderboard with streak/Elo change indicators and new offense-vs-defense delta sorting
-- Season selector in leaderboard settings to recompute all stats per season
-- Recent matches with timelines
-- Player stats modal with charts and tables
+- **Players:** `{ id, name, elo, games }`
+- **Matches:**
+  ```
+  {
+    id,
+    teamA, teamB, winner,
+    goalsA, goalsB,
+    eloDelta, timestamp,
+    positionsConfirmed?, ranked?,
+    goalLog?, matchDuration?,
+    vibrationLogPath?,
+    pairingMetadata?
+  }
+  ```
+  - `teamA`/`teamB` are arrays with length 1 (1v1) or 2 (2v2).
+  - `pairingMetadata` tracks pairing origin and waiting players.
 
-## Access Control
-- The app uses a shared Firebase Auth account to gate access via a password prompt.
-- Firestore/Storage rules require authentication, so data is inaccessible without sign-in.
+## File‑by‑File Highlights
 
-## Extensibility
-- Modular codebase: Each feature is in its own file
-- Centralized data/state management
-- Easily supports new analytics, UI components, or data sources
+### App & UI
+- `src/app.js`: App bootstrap, auth gate, listener lifecycle, pause screen.
+- `src/match-form-handler.js`: Validation, live mode, Elo updates, match writes, vibration logs.
+- `src/leaderboard-display.js`, `src/recent-matches-display.js`: Core UI views.
+- `src/player-stats-component.js`: Player modal with charts and tables.
+- `src/match-timeline.js`: SVG timeline rendering for goal logs.
 
-## Seasons
-- Seasons are configured in the frontend (name, start/end, optional Elo K-factor override)
-- The selected season filters match history for all stat computations
-- Default season is the most recent season containing the current date
+### Data & Analytics
+- `src/firebase-service.js`: Firebase init + persistence, emulator hooks (commented).
+- `src/player-data-service.js`, `src/match-data-service.js`: Real‑time listeners + cache updates.
+- `src/player-stats-batch.js`: Single‑pass stats engine (Elo/OpenSkill, badges, streaks).
+- `src/stats-cache-service.js`: Cached stats store with update events.
+- `src/pairing-service.js`: 2v2 suggestion engine + waiting‑karma logic.
+- `src/season-service.js`: Season selection and K‑factor override.
+
+### Server/Admin
+- `functions/`: Firebase Cloud Functions (separate Node 22 package).
+- `admin/`: One‑off admin scripts (backup, recompute Elo, cleanup).
 
 ## Testing
-- Test files located in `test/` directory
-- Validation utilities in `src/utils/player-stats-validator.js`
-- Run tests with `npm run test:stats`
-- Comprehensive validation for batch statistics computation
+
+- Tests live in `test/`
+- Run stats tests with `npm run test:stats` or all with `npm test`
 
 ## Performance Optimizations
-- **Batch Statistics Computation** (`src/player-stats-batch.js`): Computes all player stats in a single pass through match history
-  - Replaces 12+ individual stat functions with one optimized function
-  - O(N × M) complexity instead of O(N × M × S) where S ≈ 12
-  - See `BATCH_STATS.md` for implementation details
+
+- Batch stats computation in `src/player-stats-batch.js` reduces repeated per‑stat passes.
+- Stats caching in `src/stats-cache-service.js` speeds leaderboard and modal rendering.
 
 ---
 
-This document should be updated as the codebase evolves, especially when refactoring or adding major features.
+Keep this document updated as features or architecture evolve.
