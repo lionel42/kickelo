@@ -142,6 +142,7 @@ exports.notifyOnMatchCreate = onDocumentCreated('matches/{matchId}', async (even
       tokensForUser.forEach((token) => {
         updates[`fcmTokens.${token}`] = admin.firestore.FieldValue.delete();
       });
+      updates.notificationsEnabled = false;
       cleanupPromises.push(admin.firestore().collection('users').doc(userId).update(updates));
     });
 

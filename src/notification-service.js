@@ -1,5 +1,5 @@
 import { getMessaging, getToken, deleteToken, onMessage, isSupported } from 'firebase/messaging';
-import { doc, getDoc, setDoc, updateDoc } from './firebase-service.js';
+import { doc, getDoc, setDoc, updateDoc, onSnapshot } from './firebase-service.js';
 import { auth, db } from './firebase-service.js';
 import { notifyOnMatchCheckbox } from './dom-elements.js';
 import { serverTimestamp, deleteField } from 'firebase/firestore';
@@ -9,6 +9,7 @@ let initialized = false;
 let currentToken = null;
 let messagingInstance = null;
 let suppressToggle = false;
+let unsubscribeUserDoc = null;
 
 async function getMessagingInstance() {
     if (messagingInstance) return messagingInstance;
@@ -116,17 +117,27 @@ async function disableNotifications() {
     currentToken = null;
 }
 
-async function hydrateCheckbox() {
+function hasActiveTokens(data) {
+    const tokens = data?.fcmTokens || {};
+    return Object.keys(tokens).length > 0;
+}
+
+function watchUserDoc() {
     const userRef = getUserDocRef();
     if (!userRef || !notifyOnMatchCheckbox) return;
+    if (unsubscribeUserDoc) unsubscribeUserDoc();
 
-    try {
-        const snapshot = await getDoc(userRef);
-        const enabled = snapshot.exists() ? Boolean(snapshot.data().notificationsEnabled) : false;
+    unsubscribeUserDoc = onSnapshot(userRef, (snapshot) => {
+        if (!snapshot.exists()) {
+            updateCheckboxState(false);
+            return;
+        }
+        const data = snapshot.data();
+        const enabled = Boolean(data.notificationsEnabled) && hasActiveTokens(data);
         updateCheckboxState(enabled);
-    } catch (error) {
-        console.warn('Failed to read notification preferences:', error);
-    }
+    }, (error) => {
+        console.warn('Failed to listen to notification preferences:', error);
+    });
 }
 
 function setupForegroundNotifications() {
@@ -159,7 +170,7 @@ export async function initializeNotifications() {
     }
 
     notifyOnMatchCheckbox.disabled = false;
-    await hydrateCheckbox();
+    watchUserDoc();
 
     notifyOnMatchCheckbox.addEventListener('change', async () => {
         if (suppressToggle) return;
