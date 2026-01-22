@@ -74,6 +74,24 @@ h1 {
   /* text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); */
 }
 
+.github-line {
+  text-align: center;
+  color: var(--text-color-secondary);
+  margin-top: -10px;
+  margin-bottom: 20px;
+  font-size: 0.95rem;
+}
+
+.github-line a {
+  color: var(--accent-blue);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.github-line a:hover {
+  color: #8bc4d6;
+}
+
 h2 {
   text-align: center;
   color: #ccc;
