@@ -3,10 +3,9 @@ import { allMatches } from './match-data-service.js';
 import { teamA1Select, teamA2Select, teamB1Select, teamB2Select } from './dom-elements.js';
 import { notifyRolesChanged } from "./match-form-handler.js";
 import { getCachedStats, isCacheReady } from './stats-cache-service.js';
-import { STARTING_ELO } from './constants.js';
+import { STARTING_ELO, SESSION_GAP_MS } from './constants.js';
 
-const SESSION_GAP = 30 * 60 * 1000; // 30 minutes in ms
-const SUGGESTION_TTL = SESSION_GAP;
+const SUGGESTION_TTL = SESSION_GAP_MS;
 
 const WAITING_KARMA_DEFAULTS = {
   recencyBoosts: [1.5, 1.25],

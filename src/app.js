@@ -11,6 +11,7 @@ import { showPlayerStats } from './player-stats-component.js';
 import { initializeMatchesData, resetMatchDataListener, refreshSeasonStats } from './match-data-service.js';
 import { PAUSE_DATES, PAUSE_MESSAGE, PAUSE_IMAGE_PATH } from './constants.js';
 import { getSelectedSeason } from './season-service.js';
+import { initializeNotifications } from './notification-service.js';
 
 import { auth } from './firebase-service.js';
 import { onAuthStateChanged, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, signOut } from 'firebase/auth';
@@ -74,6 +75,7 @@ function goOnline() {
     initializeLeaderboardDisplay();
     initializeRecentMatchesDisplay();
     initializePlayerManager();
+    initializeNotifications();
 }
 
 /**

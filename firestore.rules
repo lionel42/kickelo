@@ -88,5 +88,11 @@ service cloud.firestore {
       // like the list of active players for pairing suggestions.
       allow read, write: if canAccess();
     }
+
+    // --- Rules for the 'users' collection (notification preferences) ---
+    match /users/{userId} {
+      allow get, create, update: if canAccess() && request.auth.uid == userId;
+      allow list: if false;
+    }
   }
 }

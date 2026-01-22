@@ -11,6 +11,9 @@ export const ELO_RATING_SCALE = 400;  // Scale factor in the ELO formula (standa
 // Player activity threshold (in days)
 export const INACTIVE_THRESHOLD_DAYS = 14;  // Players inactive for 2 weeks
 
+// Session configuration
+export const SESSION_GAP_MS = 30 * 60 * 1000; // 30 minutes in ms
+
 // Badge / emoji configuration
 export const BADGE_THRESHOLDS = Object.freeze({
 	medic: {

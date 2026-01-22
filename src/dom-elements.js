@@ -32,6 +32,7 @@ const positionConfirmationContainer = document.getElementById('positionConfirmat
 const positionsConfirmedCheckbox = document.getElementById('positionsConfirmedCheckbox');
 const rankedMatchContainer = document.getElementById('rankedMatchContainer');
 const rankedMatchCheckbox = document.getElementById('rankedMatchCheckbox');
+const notifyOnMatchCheckbox = document.getElementById('notifyOnMatch');
 
 
 export {
@@ -64,7 +65,8 @@ export {
     positionConfirmationContainer,
     positionsConfirmedCheckbox,
     rankedMatchContainer,
-    rankedMatchCheckbox
+    rankedMatchCheckbox,
+    notifyOnMatchCheckbox
 };
 
 // export const playerStatsBackdrop = document.getElementById('playerStatsBackdrop');

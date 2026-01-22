@@ -70,6 +70,53 @@ npm run test:cache
 firebase emulators:start
 ```
 
+## Notifications (Opt-in)
+
+Kickelo can send push notifications when a match is submitted.
+
+### Setup
+
+1. Enable Cloud Messaging for the Firebase project.
+2. Create a Web Push certificate in Firebase Console → Project Settings → Cloud Messaging.
+3. Add the VAPID key to a local env file for Vite:
+
+```bash
+VITE_FIREBASE_VAPID_KEY=YOUR_PUBLIC_VAPID_KEY
+```
+
+4. Deploy the Cloud Functions and Firestore rules:
+
+```bash
+firebase deploy --only functions,firestore:rules
+```
+
+### Notes
+
+- Notifications require HTTPS (localhost is OK for development).
+- Users can opt in/out via the UI toggle below the headline.
+- The session-start notification gap can be configured via the Functions env var `SESSION_GAP_MS` (defaults to 30 minutes).
+
+### Emulator troubleshooting
+
+If the Functions emulator fails to start with missing modules or analysis errors:
+
+```bash
+cd functions
+npm install
+```
+
+Then re-run:
+
+```bash
+firebase emulators:start --only functions
+```
+
+If you still see `Functions codebase could not be analyzed successfully`, open the Functions emulator logs for the full stack trace and check for:
+
+- Missing dependencies in `functions/package.json`
+- Syntax/runtime errors in `functions/index.js`
+- Node version mismatch (Functions uses Node 22)
+
 ## Admin Scripts
 
 One‑off admin scripts live in `admin/` and use `firebase-admin`. They require service account credentials provided via environment (for example, `GOOGLE_APPLICATION_CREDENTIALS`). Do not commit keys or backups to the repository. Run these scripts carefully against the correct project.

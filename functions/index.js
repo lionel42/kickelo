@@ -7,10 +7,10 @@
  * See a full list of supported triggers at https://firebase.google.com/docs/functions
  */
 
-const {setGlobalOptions} = require("firebase-functions");
-const {onRequest} = require("firebase-functions/https");
+const { setGlobalOptions } = require("firebase-functions/v2");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const logger = require("firebase-functions/logger");
-const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
 // Initialize the Firebase Admin SDK
@@ -37,17 +37,17 @@ setGlobalOptions({ maxInstances: 10 });
 // });
 
 // HTTPS Callable Function to verify password and issue custom token
-exports.verifyPasswordAndGetToken = functions.https.onCall(async (data, context) => {
-  const password = data.password;
-  const uid = data.uid;
+exports.verifyPasswordAndGetToken = onCall(async (request) => {
+  const password = request.data?.password;
+  const uid = request.data?.uid;
   const GLOBAL_PASSWORD = process.env.GLOBAL_SITE_PASSWORD;
 
   if (!password || !uid) {
-    throw new functions.https.HttpsError('invalid-argument', 'Password and UID must be provided.');
+    throw new HttpsError('invalid-argument', 'Password and UID must be provided.');
   }
 
   if (password !== GLOBAL_PASSWORD) {
-    throw new functions.https.HttpsError('permission-denied', 'Incorrect password.');
+    throw new HttpsError('permission-denied', 'Incorrect password.');
   }
 
   // Issue a custom token with the hasAccess claim
@@ -56,6 +56,98 @@ exports.verifyPasswordAndGetToken = functions.https.onCall(async (data, context)
     const customToken = await admin.auth().createCustomToken(uid, additionalClaims);
     return { customToken };
   } catch (error) {
-    throw new functions.https.HttpsError('internal', 'Failed to create custom token.');
+    throw new HttpsError('internal', 'Failed to create custom token.');
   }
 });
+
+// Notify opted-in users when a new match is created
+exports.notifyOnMatchCreate = onDocumentCreated('matches/{matchId}', async (event) => {
+    const snap = event.data;
+    if (!snap) return null;
+    const match = snap.data() || {};
+    const matchTimestamp = match.timestamp?.toMillis?.();
+    if (!matchTimestamp) return null;
+
+    const SESSION_GAP_MS = Number(process.env.SESSION_GAP_MS || 30 * 60 * 1000);
+    const cutoffTimestamp = matchTimestamp - SESSION_GAP_MS;
+    const previousMatches = await admin.firestore()
+      .collection('matches')
+      .where('timestamp', '<', match.timestamp)
+      .orderBy('timestamp', 'desc')
+      .limit(1)
+      .get();
+
+    if (!previousMatches.empty) {
+      const previousMatch = previousMatches.docs[0].data();
+      const previousTimestamp = previousMatch.timestamp?.toMillis?.();
+      if (previousTimestamp && previousTimestamp >= cutoffTimestamp) {
+        return null;
+      }
+    }
+    const winner = match.winner === 'A' ? 'Team A' : 'Team B';
+    const goalsA = match.goalsA ?? '-';
+    const goalsB = match.goalsB ?? '-';
+
+    const title = 'New match submitted';
+    const body = `${winner} won ${goalsA}:${goalsB}. Join the session?`;
+
+    const usersSnapshot = await admin.firestore()
+      .collection('users')
+      .where('notificationsEnabled', '==', true)
+      .get();
+
+    if (usersSnapshot.empty) {
+      return null;
+    }
+
+    const tokenToUser = new Map();
+    usersSnapshot.forEach((doc) => {
+      const data = doc.data() || {};
+      const tokens = data.fcmTokens || {};
+      Object.keys(tokens).forEach((token) => {
+        tokenToUser.set(token, doc.id);
+      });
+    });
+
+    const tokens = Array.from(tokenToUser.keys());
+    if (tokens.length === 0) {
+      return null;
+    }
+
+    const response = await admin.messaging().sendEachForMulticast({
+      tokens,
+      notification: { title, body },
+      data: { url: '/' }
+    });
+
+    const invalidTokensByUser = new Map();
+    response.responses.forEach((resp, idx) => {
+      if (resp.success) return;
+      const errorCode = resp.error?.code;
+      if (errorCode === 'messaging/registration-token-not-registered'
+          || errorCode === 'messaging/invalid-registration-token') {
+        const token = tokens[idx];
+        const userId = tokenToUser.get(token);
+        if (!userId) return;
+        if (!invalidTokensByUser.has(userId)) {
+          invalidTokensByUser.set(userId, []);
+        }
+        invalidTokensByUser.get(userId).push(token);
+      }
+    });
+
+    const cleanupPromises = [];
+    invalidTokensByUser.forEach((tokensForUser, userId) => {
+      const updates = {};
+      tokensForUser.forEach((token) => {
+        updates[`fcmTokens.${token}`] = admin.firestore.FieldValue.delete();
+      });
+      cleanupPromises.push(admin.firestore().collection('users').doc(userId).update(updates));
+    });
+
+    if (cleanupPromises.length > 0) {
+      await Promise.all(cleanupPromises);
+    }
+
+    return null;
+  });

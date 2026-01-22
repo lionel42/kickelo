@@ -92,6 +92,25 @@ h1 {
   color: #8bc4d6;
 }
 
+.notification-opt-in {
+  text-align: center;
+  margin-bottom: 20px;
+  color: var(--text-color-secondary);
+  font-size: 0.95rem;
+}
+
+.notification-opt-in label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.notification-opt-in input[type="checkbox"] {
+  accent-color: var(--accent-blue);
+}
+
+
 h2 {
   text-align: center;
   color: #ccc;
