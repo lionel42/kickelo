@@ -4,6 +4,8 @@ import { db, doc, addDoc, updateDoc, collection } from './firebase-service.js';
 import { serverTimestamp } from "firebase/firestore";
 import { expectedScore, updateRating } from './elo-service.js';
 import { getOrCreatePlayer } from './player-manager.js';
+import { getCachedStats, isCacheReady } from './stats-cache-service.js';
+import { getSelectedSeason } from './season-service.js';
 import {
     teamA1Select, teamA2Select, teamB1Select, teamB2Select,
     teamAgoalsInput, teamBgoalsInput, submitMatchBtn,
@@ -12,7 +14,7 @@ import {
     positionConfirmationContainer, positionsConfirmedCheckbox,
     rankedMatchContainer, rankedMatchCheckbox
 } from './dom-elements.js';
-import { MAX_GOALS } from './constants.js';
+import { MAX_GOALS, STARTING_ELO } from './constants.js';
 import { evaluateLastSuggestion, clearLastSuggestion } from './pairing-service.js';
 
 function buildWaitingPlayers(activePlayers = [], teamA = [], teamB = []) {
@@ -42,6 +44,17 @@ function buildPairingMetadata(teamA, teamB) {
         };
     }
     return { source: 'manual' };
+}
+
+function getSeasonElo(playerName) {
+    if (!isCacheReady()) {
+        return STARTING_ELO;
+    }
+    const stats = getCachedStats(playerName);
+    if (!stats || !Array.isArray(stats.eloTrajectory) || stats.eloTrajectory.length === 0) {
+        return STARTING_ELO;
+    }
+    return stats.eloTrajectory[stats.eloTrajectory.length - 1].elo ?? STARTING_ELO;
 }
 
 export function setupMatchForm() {
@@ -132,12 +145,14 @@ export function setupMatchForm() {
         const playerMap = {};
         playerDocs.forEach(p => { playerMap[p.name] = p; });
 
-        // Calculate team ratings (average of team members)
-        const teamARating = teamA.reduce((sum, name) => sum + playerMap[name].elo, 0) / teamA.length;
-        const teamBRating = teamB.reduce((sum, name) => sum + playerMap[name].elo, 0) / teamB.length;
+        // Calculate season-aware team ratings (average of team members)
+        const teamARating = teamA.reduce((sum, name) => sum + getSeasonElo(name), 0) / teamA.length;
+        const teamBRating = teamB.reduce((sum, name) => sum + getSeasonElo(name), 0) / teamB.length;
         const expectedA = expectedScore(teamARating, teamBRating);
         const scoreA = winner === "A" ? 1 : 0;
-        const delta = updateRating(0, expectedA, scoreA);
+        const season = getSelectedSeason();
+        const seasonKFactor = season?.kFactor;
+        const delta = updateRating(0, expectedA, scoreA, seasonKFactor);
 
         // Confirmation message
         const winnerNames = winner === "A" ? teamA.join(" & ") : teamB.join(" & ");
@@ -145,7 +160,8 @@ export function setupMatchForm() {
         const eloChange = Math.abs(delta);
         const winnerGoals = winner === "A" ? parsedGoalsA : parsedGoalsB;
         const loserGoals = winner === "A" ? parsedGoalsB : parsedGoalsA;
-        const message = `Confirm match submission:\n\nWinners: ${winnerNames}\nLosers: ${loserNames}\nScore: ${winnerGoals}:${loserGoals}\nElo change: ${eloChange}\n\nDo you want to submit this match?`;
+        const seasonLabel = season?.name ? ` (${season.name})` : '';
+        const message = `Confirm match submission:\n\nWinners: ${winnerNames}\nLosers: ${loserNames}\nScore: ${winnerGoals}:${loserGoals}\nElo change${seasonLabel}: ${eloChange}\n\nDo you want to submit this match?`;
         if (!confirm(message)) {
             return;
         }
@@ -156,18 +172,18 @@ export function setupMatchForm() {
     const rankedMatchState = getRankedMatchState();
 
 
-        // Update players' ELO and games count
+        // Update players' games count
         const matchesColRef = collection(db, 'matches');
         const playersColRef = collection(db, 'players');
-        // For each player, update ELO and games
+        // For each player, update games only
         const updatePromises = [];
         teamA.forEach(name => {
             const p = playerMap[name];
-            updatePromises.push(updateDoc(doc(playersColRef, name), { elo: p.elo + delta, games: (p.games || 0) + 1 }));
+            updatePromises.push(updateDoc(doc(playersColRef, name), { games: (p.games || 0) + 1 }));
         });
         teamB.forEach(name => {
             const p = playerMap[name];
-            updatePromises.push(updateDoc(doc(playersColRef, name), { elo: p.elo - delta, games: (p.games || 0) + 1 }));
+            updatePromises.push(updateDoc(doc(playersColRef, name), { games: (p.games || 0) + 1 }));
         });
         await Promise.all(updatePromises);
 
@@ -180,7 +196,6 @@ export function setupMatchForm() {
                 winner: winner,
                 goalsA: parsedGoalsA,
                 goalsB: parsedGoalsB,
-                eloDelta: Math.abs(delta),
                 timestamp: serverTimestamp(),
                 pairingMetadata,
                 positionsConfirmed: positionsConfirmedState,

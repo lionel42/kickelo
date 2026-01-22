@@ -31,21 +31,19 @@ service cloud.firestore {
       // READ: Anyone using the app can read player profiles and leaderboards.
       allow get, list: if canAccess();
 
-      // CREATE: A new player can be created by any signed-in user,
-      // but we enforce that they start with the default ELO and game count.
-      // Note: STARTING_ELO = 1500 (defined in src/constants.js)
+      // CREATE: A new player can be created by any signed-in user.
       allow create: if canAccess()
-                    && request.resource.data.name == playerName
-                    && request.resource.data.elo == 1500
-                    && request.resource.data.games == 0
-                    && request.resource.data.size() == 3; // Ensures no extra fields
+            && request.resource.data.name == playerName
+            && request.resource.data.games == 0
+            && (!('elo' in request.resource.data) || request.resource.data.elo == 1500)
+            && request.resource.data.size() <= 3; // Allows optional elo field
 
       // UPDATE: Allow updates only if the user is signed in and provides valid data types.
       // This prevents users from corrupting their data, e.g., setting ELO to a string.
       allow update: if canAccess()
                     && request.resource.data.name == resource.data.name // Player name cannot be changed
-                    && request.resource.data.elo is number
-                    && request.resource.data.games is number;
+            && (!('elo' in request.resource.data) || request.resource.data.elo is number)
+            && request.resource.data.games is number;
     }
 
     // --- Rules for the 'matches' collection ---
@@ -57,16 +55,16 @@ service cloud.firestore {
       // CREATE: Anyone can log a new match, but the data must be valid.
       // This is our most important validation rule.
       allow create: if canAccess()
-                    && request.resource.data.teamA is list
-                    && request.resource.data.teamA.size() <= 2 // Allow 1v1 or 2v2
-                    && request.resource.data.teamB is list
-                    && request.resource.data.teamB.size() <= 2
-                    && request.resource.data.winner is string
-                    && (request.resource.data.winner == 'A' || request.resource.data.winner == 'B')
-                    && request.resource.data.goalsA is number
-                    && request.resource.data.goalsB is number
-                    && request.resource.data.eloDelta is number
-                    && request.resource.data.timestamp == request.time; // Enforce server timestamp
+            && request.resource.data.teamA is list
+            && request.resource.data.teamA.size() <= 2 // Allow 1v1 or 2v2
+            && request.resource.data.teamB is list
+            && request.resource.data.teamB.size() <= 2
+            && request.resource.data.winner is string
+            && (request.resource.data.winner == 'A' || request.resource.data.winner == 'B')
+            && request.resource.data.goalsA is number
+            && request.resource.data.goalsB is number
+            && (!('eloDelta' in request.resource.data) || request.resource.data.eloDelta is number)
+            && request.resource.data.timestamp == request.time; // Enforce server timestamp
 
       // Allow only vibrationLogPath and hasVibrationLog to be changed
 

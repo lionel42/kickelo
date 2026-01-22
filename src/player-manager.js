@@ -2,7 +2,6 @@
 import { db, doc, getDoc, setDoc } from './firebase-service.js';
 import { allPlayers } from './player-data-service.js';
 import { teamA1Select, teamA2Select, teamB1Select, teamB2Select } from './dom-elements.js';
-import { STARTING_ELO } from './constants.js';
 
 /**
  * Checks if a player exists and creates them if they don't.
@@ -23,7 +22,7 @@ export async function getOrCreatePlayer(name) {
     if (!docSnap.exists()) {
         // Create the player. The player-data-service will pick up this change automatically.
         console.log(`Creating new player in Firestore: ${name}`);
-        const newPlayerData = { name: name, elo: STARTING_ELO, games: 0 };
+        const newPlayerData = { name: name, games: 0 };
         await setDoc(playerDocRef, newPlayerData);
         return newPlayerData;
     } else {

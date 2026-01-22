@@ -22,7 +22,7 @@ function createMatchListItem(match) {
     const loserGoals = match.winner === "A" ? goalsB : goalsA;
 
     const seasonDelta = getSeasonMatchDelta(match);
-    const deltaDisplay = seasonDelta ?? match.eloDelta ?? 0;
+    const deltaDisplay = seasonDelta ?? 0;
     const deltaLabel = match.ranked === false
         ? '(unranked)'
         : `(Elo Δ: ${deltaDisplay})`;

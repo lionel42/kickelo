@@ -1,8 +1,9 @@
 import { db, getDoc, doc } from './firebase-service.js'; // Only need db access for the session doc
 import { allMatches } from './match-data-service.js';
-import { allPlayers } from './player-data-service.js';
 import { teamA1Select, teamA2Select, teamB1Select, teamB2Select } from './dom-elements.js';
 import { notifyRolesChanged } from "./match-form-handler.js";
+import { getCachedStats, isCacheReady } from './stats-cache-service.js';
+import { STARTING_ELO } from './constants.js';
 
 const SESSION_GAP = 30 * 60 * 1000; // 30 minutes in ms
 const SUGGESTION_TTL = SESSION_GAP;
@@ -13,6 +14,17 @@ const WAITING_KARMA_DEFAULTS = {
 };
 
 let lastSuggestion = null;
+
+function getSeasonElo(playerName) {
+  if (!isCacheReady()) {
+    return STARTING_ELO;
+  }
+  const stats = getCachedStats(playerName);
+  if (!stats || !Array.isArray(stats.eloTrajectory) || stats.eloTrajectory.length === 0) {
+    return STARTING_ELO;
+  }
+  return stats.eloTrajectory[stats.eloTrajectory.length - 1].elo ?? STARTING_ELO;
+}
 
 function cloneTeam(team = []) {
   return Array.isArray(team) ? [...team] : [];
@@ -410,10 +422,8 @@ export async function suggestPairing() {
   console.log("Waiting Karma Map:", waitingKarmaMap);
 
   const eloMap = {};
-  allPlayers.forEach(p => {
-      if (activePlayers.includes(p.id)) {
-          eloMap[p.id] = p.elo;
-      }
+  activePlayers.forEach(playerId => {
+    eloMap[playerId] = getSeasonElo(playerId);
   });
 
   const data = {

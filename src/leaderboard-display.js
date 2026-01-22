@@ -108,7 +108,7 @@ function getCurrentEloFromStats(stats) {
 function getSortValue(player, stats, sortBy) {
     switch (sortBy) {
         case 'elo':
-            return getCurrentEloFromStats(stats) ?? player.elo ?? STARTING_ELO;
+            return getCurrentEloFromStats(stats) ?? STARTING_ELO;
         case 'offenseElo': {
             if (!stats || !stats.roleElo) return STARTING_ELO;
             return stats.roleElo.offense ?? STARTING_ELO;
@@ -167,7 +167,7 @@ function getSortValue(player, stats, sortBy) {
             return stats.longestStreaks.longestWinStreak || 0;
         }
         default:
-            return player.elo || 0;
+            return STARTING_ELO;
     }
 }
 
@@ -177,7 +177,7 @@ function getSortValue(player, stats, sortBy) {
 function getDisplayValue(player, stats, sortBy) {
     switch (sortBy) {
         case 'elo':
-            return getCurrentEloFromStats(stats) ?? player.elo ?? STARTING_ELO;
+            return getCurrentEloFromStats(stats) ?? STARTING_ELO;
         case 'offenseElo': {
             if (!stats || !stats.roleElo) return STARTING_ELO;
             return Math.round(stats.roleElo.offense ?? STARTING_ELO);
@@ -244,7 +244,7 @@ function getDisplayValue(player, stats, sortBy) {
             return stats.longestStreaks.longestWinStreak || 0;
         }
         default:
-            return player.elo;
+            return STARTING_ELO;
     }
 }
 

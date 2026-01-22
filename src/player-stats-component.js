@@ -697,7 +697,7 @@ class PlayerStatsComponent extends HTMLElement {
             const playerTeamHtml = isPlayerInTeamA ? teamAPlayers : teamBPlayers;
             const opponentTeamHtml = isPlayerInTeamA ? teamBPlayers : teamAPlayers;
             const seasonDelta = getSeasonMatchDelta(match);
-            const deltaValue = seasonDelta ?? match.eloDelta ?? 0;
+            const deltaValue = seasonDelta ?? 0;
             const changeSpanText = match.ranked === false
                 ? `<span style="color: gray">(unranked)</span>`
                 : (playerWon
