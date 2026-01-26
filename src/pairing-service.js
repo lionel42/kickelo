@@ -236,7 +236,7 @@ function splitSession(matches) {
     let sessionStartIdx = matches.length;
     for (let i = matches.length - 1; i >= 0; i--) {
         // Use the timestamp from the match data
-        if (now - matches[i].timestamp > SESSION_GAP) {
+        if (now - matches[i].timestamp > SESSION_GAP_MS) {
             sessionStartIdx = i + 1;
             break;
         }
