@@ -36,30 +36,6 @@ setGlobalOptions({ maxInstances: 10 });
 //   response.send("Hello from Firebase!");
 // });
 
-// HTTPS Callable Function to verify password and issue custom token
-exports.verifyPasswordAndGetToken = onCall(async (request) => {
-  const password = request.data?.password;
-  const uid = request.data?.uid;
-  const GLOBAL_PASSWORD = process.env.GLOBAL_SITE_PASSWORD;
-
-  if (!password || !uid) {
-    throw new HttpsError('invalid-argument', 'Password and UID must be provided.');
-  }
-
-  if (password !== GLOBAL_PASSWORD) {
-    throw new HttpsError('permission-denied', 'Incorrect password.');
-  }
-
-  // Issue a custom token with the hasAccess claim
-  const additionalClaims = { hasAccess: true };
-  try {
-    const customToken = await admin.auth().createCustomToken(uid, additionalClaims);
-    return { customToken };
-  } catch (error) {
-    throw new HttpsError('internal', 'Failed to create custom token.');
-  }
-});
-
 // Notify opted-in users when a new match is created
 exports.notifyOnMatchCreate = onDocumentCreated('matches/{matchId}', async (event) => {
     const snap = event.data;
