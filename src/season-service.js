@@ -31,14 +31,27 @@ export class Season {
 const SEASONS = [
     new Season({
         id: 'season-1',
-        name: 'Season 1 (June 2025 - Jan 2026)',
+        name: 'Season 1 (June 2025 - Dec 2025)',
+        start: makeLocalDate(2025, 6, 1),
+        end: makeLocalDate(2025, 12, 31)
+    }),
+    new Season({
+        id: 'extended-season-1',
+        name: 'Extended season 1 (June 2025 - Jan 2026)',
         start: makeLocalDate(2025, 6, 1),
         end: makeLocalDate(2026, 1, 15)
     }),
     new Season({
         id: 'season-2',
-        name: 'Season 2',
+        name: 'Season 2 (Jan 2026 - Jun 2026)',
         start: makeLocalDate(2026, 1, 16),
+        end: makeLocalDate(2026, 6, 30),
+        // kFactor: 100
+    }),
+    new Season({
+        id: 'season-3',
+        name: 'Season 3 (Jul 2026 - Dec 2026)',
+        start: makeLocalDate(2026, 7, 1),
         end: makeLocalDate(2026, 12, 31),
         // kFactor: 100
     }),
