@@ -329,7 +329,7 @@ function scorePairing(p, data) {
   const w = {
     sessionPlays: 0,
     sessionTeammateRepeat: 100.0,
-    historicTeammateRepeat: 20.0,
+    historicTeammateRepeat: 0.0,
     sessionOpponentRepeat: 40.0,
     historicOpponentRepeat: 0.0,
     intraTeamEloDiff: 0.0,
