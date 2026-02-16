@@ -329,7 +329,7 @@ function scorePairing(p, data) {
   const w = {
     sessionPlays: 0,
     sessionTeammateRepeat: 100.0,
-    historicTeammateRepeat: 20.0,
+    historicTeammateRepeat: 0.0,
     sessionOpponentRepeat: 40.0,
     historicOpponentRepeat: 0.0,
     intraTeamEloDiff: 0.0,
@@ -446,16 +446,31 @@ export async function suggestPairing() {
   scored.sort((a, b) => b.score - a.score);
 
   // Take the best scoring pairing. If there's a tie, choose a random one among the best with a seeded random.
-  // Use the active players as a seed for reproducibility within the same session/player set.
+  // Use the active players + a session key as a seed for reproducibility across devices.
+  // The session key changes between sessions (based on the first match in-session, or the latest match timestamp
+  // when the session hasn't started yet), so the same active players can yield a different first suggestion
+  // in a new session.
   const bestScore = scored[0].score;
   const bestCandidates = scored.filter(s => s.score === bestScore);
   
-  // Create a simple hash from active players to use as seed
-  const seed = activePlayers.sort().join(',').split('').reduce((acc, char) => {
+  const sessionStartTimestamp = (sessionMatches.length > 0 && typeof sessionMatches[0].timestamp === 'number')
+    ? sessionMatches[0].timestamp
+    : null;
+
+  const latestMatchTimestamp = (chronologicalMatches.length > 0 && typeof chronologicalMatches[chronologicalMatches.length - 1].timestamp === 'number')
+    ? chronologicalMatches[chronologicalMatches.length - 1].timestamp
+    : null;
+
+  const sessionSeedKey = sessionStartTimestamp ?? latestMatchTimestamp ?? 0;
+  const seedPlayers = [...activePlayers].sort().join(',');
+  const seedInput = `${seedPlayers}|${sessionSeedKey}`;
+
+  // Create a simple hash from active players + session key to use as seed
+  const seed = seedInput.split('').reduce((acc, char) => {
     return ((acc << 5) - acc) + char.charCodeAt(0) | 0;
   }, 0);
   
-  // Seeded random number generator (simple LCG)
+  // Seeded random number generator (deterministic)
   const seededRandom = (seed) => {
     const x = Math.sin(seed) * 10000;
     return x - Math.floor(x);
