@@ -1,4 +1,4 @@
-import { db, getDoc, doc } from './firebase-service.js'; // Only need db access for the session doc
+import { getSessionState } from './api-service.js';
 import { allMatches } from './match-data-service.js';
 import { teamA1Select, teamA2Select, teamB1Select, teamB2Select } from './dom-elements.js';
 import { notifyRolesChanged } from "./match-form-handler.js";
@@ -399,10 +399,8 @@ function blueCost(p, countA, countB) { return Math.abs((countA[p] || 0) / ((coun
 
 // Main function to suggest and display pairing
 export async function suggestPairing() {
-  // Fetch active players (this remains a direct Firestore call as it's session-specific)
-  const sessionDocRef = doc(db, 'meta', 'session');
-  const sessDocSnap = await getDoc(sessionDocRef);
-  const activePlayers = (sessDocSnap.exists() && sessDocSnap.data().activePlayers) || [];
+  const sessionState = await getSessionState();
+  const activePlayers = sessionState?.activePlayers || [];
   
   if (activePlayers.length < 4) {
       alert("Please select at least 4 active players to suggest a pairing.");

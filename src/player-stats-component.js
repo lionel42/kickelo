@@ -637,7 +637,7 @@ class PlayerStatsComponent extends HTMLElement {
                         Golden Ratio
 <!--                        <span class="info-icon">i</span>-->
                     </p>
-<!--                    <span class="tooltip">Ratio of 5:4 wins to all 5:4 games (won or lost).</span>-->
+<!--                    <span class="tooltip">Ratio of 10:9 wins to all 10:9 games (won or lost).</span>-->
                 </div>
                 <div class="snapshot-item">
                     <h4>${comebackDisplay}</h4>

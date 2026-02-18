@@ -1,4 +1,4 @@
-import { db, collection, onSnapshot } from './firebase-service.js';
+import { fetchMatches } from './api-service.js';
 import { updateStatsCache } from './stats-cache-service.js';
 import { INACTIVE_THRESHOLD_DAYS } from './constants.js';
 import { filterMatchesBySeason, getSelectedSeason } from './season-service.js';
@@ -15,6 +15,8 @@ let isDataReady = false;
 let dataInitialized = false;
 let recentActivePlayersCache = [];
 let recentActivePlayersLookbackDays = INACTIVE_THRESHOLD_DAYS;
+let pollTimer = null;
+let lastMatchesHash = '';
 
 function computeRecentActivePlayers(matches, lookbackDays = INACTIVE_THRESHOLD_DAYS) {
     if (!Array.isArray(matches) || matches.length === 0) {
@@ -55,46 +57,41 @@ export function initializeMatchesData() {
     }
     dataInitialized = true;
 
-    const matchesColRef = collection(db, 'matches');
+    const syncMatches = async () => {
+        try {
+            const matchesData = await fetchMatches();
+            matchesData.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
-    // onSnapshot listens for any changes in the 'matches' collection
-    return onSnapshot(matchesColRef, (snapshot) => {
-        console.log(`Match data updated from Firestore. Snapshot size: ${snapshot.size}`);
-
-        const matchesData = [];
-        snapshot.forEach((doc) => {
-            matchesData.push({ id: doc.id, ...doc.data() });
-        });
-
-        // convert Firestore timestamps to milliseconds
-        matchesData.forEach(match => {
-            if (match.timestamp && typeof match.timestamp.toMillis === 'function') {
-                match.timestamp = match.timestamp.toMillis();
+            const nextHash = JSON.stringify(matchesData);
+            if (nextHash === lastMatchesHash) {
+                return;
             }
-        });
 
-        // Sort all matches by timestamp, newest first.
-        // It's more efficient to do this once here, rather than in every function.
-        matchesData.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            lastMatchesHash = nextHash;
+            allMatches = matchesData;
+            isDataReady = true;
+            recentActivePlayersLookbackDays = INACTIVE_THRESHOLD_DAYS;
+            recentActivePlayersCache = computeRecentActivePlayers(allMatches, recentActivePlayersLookbackDays);
 
-        allMatches = matchesData;
-        isDataReady = true;
-        recentActivePlayersLookbackDays = INACTIVE_THRESHOLD_DAYS;
-        recentActivePlayersCache = computeRecentActivePlayers(allMatches, recentActivePlayersLookbackDays);
+            const season = getSelectedSeason();
+            const seasonMatches = filterMatchesBySeason(allMatches, season);
+            updateStatsCache(filterRankedMatches(seasonMatches), { season });
 
-        // Update the stats cache with all player statistics
-        // This computes all stats in a single efficient pass
-        const season = getSelectedSeason();
-        const seasonMatches = filterMatchesBySeason(allMatches, season);
-        updateStatsCache(filterRankedMatches(seasonMatches), { season });
+            window.dispatchEvent(new CustomEvent('matches-updated'));
+        } catch (error) {
+            console.error('Error syncing matches from API:', error);
+        }
+    };
 
-        // Dispatch a custom event to let your UI components know
-        // that new data is available and they should re-render.
-        window.dispatchEvent(new CustomEvent('matches-updated'));
+    syncMatches();
+    pollTimer = window.setInterval(syncMatches, 2000);
 
-    }, (error) => {
-        console.error("Error listening to matches collection:", error);
-    });
+    return () => {
+        if (pollTimer) {
+            clearInterval(pollTimer);
+            pollTimer = null;
+        }
+    };
 }
 
 /**
@@ -102,6 +99,10 @@ export function initializeMatchesData() {
  */
 export function resetMatchDataListener() {
     dataInitialized = false;
+    if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+    }
 }
 
 export function refreshSeasonStats(season = getSelectedSeason()) {

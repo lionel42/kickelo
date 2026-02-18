@@ -68,8 +68,18 @@ node_modules/
 # dotenv environment variables file
 .env
 
+# Python backend artifacts
+backend/__pycache__/
+backend/*.db
+backend/*.sqlite
+backend/data/
+
 # dataconnect generated files
 .dataconnect
 
 # chrome devtools file
-.well-known/appspecific/com.chrome.devtools.json
+.well-known/appspecific/com.chrome.devtools.json 
+
+
+# Package-lock.json
+package-lock.json

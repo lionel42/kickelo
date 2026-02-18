@@ -2,17 +2,21 @@ import { defineConfig } from 'vite';
 import { resolve } from 'path';
 
 export default defineConfig({
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true
+      }
+    }
+  },
   build: {
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'index.html'),
-        'firebase-messaging-sw': resolve(__dirname, 'src/firebase-messaging-sw.js')
+        main: resolve(__dirname, 'index.html')
       },
       output: {
-        entryFileNames: (chunk) =>
-          chunk.name === 'firebase-messaging-sw'
-            ? 'firebase-messaging-sw.js'
-            : 'assets/[name]-[hash].js'
+        entryFileNames: 'assets/[name]-[hash].js'
       }
     }
   }

@@ -1,8 +1,6 @@
-import { db, collection, doc, getDoc, setDoc, query, orderBy, getDocs } from './firebase-service.js';
+import { fetchPlayers, getSessionState, updateSessionState } from './api-service.js';
 import { backdrop, modal, modalBody, activeTitle, showInactiveToggleModal, btnSave, btnCancel } from './dom-elements.js';
 import { getRecentActivePlayers } from './match-data-service.js';
-
-const sessionDocRef = doc(db, 'meta', 'session'); // This ref should probably be here
 let showInactivePlayersInModal = false;
 
 function updateInactiveToggleAppearance() {
@@ -152,13 +150,12 @@ export async function showPlayerModal(triggerPairingCallback = null) {
     };
 
     // Load all players
-    const playersColRef = collection(db, 'players');
-    const snapshot = await getDocs(query(playersColRef, orderBy('name')));
-    const players = snapshot.docs.map(d => d.data().name);
+    const playersResponse = await fetchPlayers();
+    const players = playersResponse.map(p => p.name).sort();
 
     // Load saved active list
-    const docSnap = await getDoc(sessionDocRef);
-    const active = docSnap.exists() && docSnap.data().activePlayers || [];
+    const sessionState = await getSessionState();
+    const active = sessionState?.activePlayers || [];
     selectedPlayers = new Set(active);
     const recentActivePlayers = getRecentActivePlayers();
 
@@ -185,7 +182,7 @@ export async function showPlayerModal(triggerPairingCallback = null) {
             return;
         }
         const checked = getSelectedPlayers();
-        await setDoc(sessionDocRef, { activePlayers: checked });
+        await updateSessionState(checked);
         backdrop.style.display = 'none';
         if (triggerPairingCallback) {
             await triggerPairingCallback(); // Call the callback after saving

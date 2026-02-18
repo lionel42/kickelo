@@ -1,9 +1,6 @@
 import { computeAllPlayerStats } from '../src/player-stats-batch.js';
 import { validateStats, printDetailedStats } from '../src/utils/player-stats-validator.js';
-import { BADGE_THRESHOLDS } from '../src/constants.js';
-
-// Mock MAX_GOALS for testing
-const MAX_GOALS = 5;
+import { BADGE_THRESHOLDS, MAX_GOALS } from '../src/constants.js';
 
 /**
  * Create test matches to validate the function
@@ -21,7 +18,7 @@ function createTestMatches() {
             teamA: ['Alice', 'Bob'],
             teamB: ['Charlie', 'David'],
             winner: 'A',
-            goalsA: 5,
+            goalsA: MAX_GOALS,
             goalsB: 3,
             eloDelta: 20,
             timestamp: now - oneHour,
@@ -33,7 +30,7 @@ function createTestMatches() {
                 { team: 'red', timestamp: 25000 },
                 { team: 'blue', timestamp: 30000 },
                 { team: 'red', timestamp: 35000 },
-                { team: 'red', timestamp: 40000 },
+                ...Array(MAX_GOALS - 4).fill(null).map((_, i) => ({ team: 'red', timestamp: 40000 + i * 5000 }))
             ]
         },
         {
@@ -41,8 +38,8 @@ function createTestMatches() {
             teamA: ['Alice', 'Charlie'],
             teamB: ['Bob', 'David'],
             winner: 'B',
-            goalsA: 4,
-            goalsB: 5,
+            goalsA: MAX_GOALS - 1,
+            goalsB: MAX_GOALS,
             eloDelta: 25,
             timestamp: now - (2 * oneHour),
             goalLog: []
@@ -53,7 +50,7 @@ function createTestMatches() {
             teamA: ['Alice', 'Bob'],
             teamB: ['Charlie', 'David'],
             winner: 'A',
-            goalsA: 5,
+            goalsA: MAX_GOALS,
             goalsB: 2,
             eloDelta: 15,
             timestamp: now - oneDay - oneHour,
@@ -64,8 +61,8 @@ function createTestMatches() {
             teamA: ['Bob', 'Charlie'],
             teamB: ['Alice', 'David'],
             winner: 'A',
-            goalsA: 5,
-            goalsB: 4,
+            goalsA: MAX_GOALS,
+            goalsB: MAX_GOALS - 1,
             eloDelta: 18,
             timestamp: now - oneDay - (2 * oneHour),
             goalLog: []
@@ -77,7 +74,7 @@ function createTestMatches() {
             teamB: ['Bob', 'David'],
             winner: 'B',
             goalsA: 3,
-            goalsB: 5,
+            goalsB: MAX_GOALS,
             eloDelta: 22,
             timestamp: now - (2 * oneDay),
             goalLog: []
@@ -263,8 +260,8 @@ function createBadgeScenarioMatches() {
         teamA: ['Alice', 'Bob'],
         teamB: opponents,
         winner: 'A',
-        goalsA: 5,
-        goalsB: 4,
+        goalsA: MAX_GOALS,
+        goalsB: MAX_GOALS - 1,
         timestamp: bobWinTs
     });
 
@@ -274,8 +271,8 @@ function createBadgeScenarioMatches() {
         teamA: ['Alice', 'Charlie'],
         teamB: opponents,
         winner: 'A',
-        goalsA: 5,
-        goalsB: 4,
+        goalsA: MAX_GOALS,
+        goalsB: MAX_GOALS - 1,
         timestamp: charlieWinTs
     });
 
@@ -285,8 +282,8 @@ function createBadgeScenarioMatches() {
         teamA: ['Alice', 'David'],
         teamB: opponents,
         winner: 'A',
-        goalsA: 5,
-        goalsB: 4,
+        goalsA: MAX_GOALS,
+        goalsB: MAX_GOALS - 1,
         timestamp: davidWinTs
     });
 
@@ -296,7 +293,7 @@ function createBadgeScenarioMatches() {
             teamA: ['Alice', 'Eve'],
             teamB: ['Grace', 'Henry'],
             winner: 'A',
-            goalsA: 5,
+            goalsA: MAX_GOALS,
             goalsB: 2,
             timestamp: weekdayTimestamps[i]
         });
@@ -307,26 +304,46 @@ function createBadgeScenarioMatches() {
     const rollerTimestamp = todayStart.getTime() + HOUR;
     const chillTimestamp = rollerTimestamp + HOUR;
 
+    // Rollercoaster: alternating lead changes (red-blue-blue-red-red-blue-blue-red...)
+    // Total goals = MAX_GOALS + (MAX_GOALS - 1)
+    const rollerSequence = [];
+    for (let i = 0; i < MAX_GOALS + (MAX_GOALS - 1); i++) {
+        if (i < 2) rollerSequence.push(i % 2 === 0 ? 'red' : 'blue');
+        else rollerSequence.push(Math.floor((i - 2) / 2) % 2 === 0 ? 'red' : 'blue');
+    }
+    // Ensure red wins with MAX_GOALS
+    while (rollerSequence.filter(t => t === 'red').length < MAX_GOALS) {
+        const blueIdx = rollerSequence.lastIndexOf('blue');
+        if (blueIdx !== -1) rollerSequence[blueIdx] = 'red';
+    }
+
     addMatch(matches, {
         id: 'rollercoaster-today',
         teamA: ['Alice', 'Bob'],
         teamB: ['Charlie', 'David'],
         winner: 'A',
-        goalsA: 5,
-        goalsB: 4,
+        goalsA: MAX_GOALS,
+        goalsB: MAX_GOALS - 1,
         timestamp: rollerTimestamp,
-        goalSequence: ['red', 'blue', 'blue', 'red', 'red', 'blue', 'blue', 'red', 'red']
+        goalSequence: rollerSequence
     });
+
+    // Chill comeback: blue leads entire game until red scores last goals to win
+    // Blue gets (MAX_GOALS - 1) goals first, then red gets MAX_GOALS
+    const chillSequence = [
+        ...Array(MAX_GOALS - 1).fill('blue'),
+        ...Array(MAX_GOALS).fill('red')
+    ];
 
     addMatch(matches, {
         id: 'chill-today',
         teamA: ['Alice', 'Bob'],
         teamB: ['Charlie', 'David'],
         winner: 'A',
-        goalsA: 5,
-        goalsB: 4,
+        goalsA: MAX_GOALS,
+        goalsB: MAX_GOALS - 1,
         timestamp: chillTimestamp,
-        goalSequence: ['blue', 'blue', 'blue', 'red', 'blue', 'red', 'red', 'red', 'red']
+        goalSequence: chillSequence
     });
 
     return matches.sort((a, b) => b.timestamp - a.timestamp);
@@ -341,7 +358,7 @@ function addLossSeries(matches, player, teammate, opponents, winTimestamp, lossC
             teamB: opponents,
             winner: 'B',
             goalsA: 2,
-            goalsB: 5,
+            goalsB: MAX_GOALS,
             timestamp: startTs + i * HOUR
         });
     }

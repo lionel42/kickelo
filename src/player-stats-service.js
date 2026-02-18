@@ -356,7 +356,7 @@ export function getHighestElo(playerName) {
 }
 
 /**
- * Calculates the 'golden ratio' for a player: ratio of games won 5:4 to (games won 5:4 + games lost 4:5).
+ * Calculates the 'golden ratio' for a player: ratio of games won 10:9 to (games won 10:9 + games lost 9:10).
  * @param {string} playerName - The name of the player.
  * @returns {number|null} Golden ratio, or null if no relevant games.
  */

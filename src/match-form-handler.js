@@ -1,7 +1,6 @@
 // src/match-form-handler.js
 
-import { db, doc, addDoc, updateDoc, collection } from './firebase-service.js';
-import { serverTimestamp } from "firebase/firestore";
+import { createMatch, incrementPlayerGames } from './api-service.js';
 import { expectedScore, updateRating } from './elo-service.js';
 import { getOrCreatePlayer } from './player-manager.js';
 import { getCachedStats, isCacheReady } from './stats-cache-service.js';
@@ -141,9 +140,7 @@ export function setupMatchForm() {
 
         // Get player documents (getOrCreatePlayer for each unique player)
         const playerNames = Array.from(uniquePlayers);
-        const playerDocs = await Promise.all(playerNames.map(getOrCreatePlayer));
-        const playerMap = {};
-        playerDocs.forEach(p => { playerMap[p.name] = p; });
+        await Promise.all(playerNames.map(getOrCreatePlayer));
 
         // Calculate season-aware team ratings (average of team members)
         const teamARating = teamA.reduce((sum, name) => sum + getSeasonElo(name), 0) / teamA.length;
@@ -172,20 +169,7 @@ export function setupMatchForm() {
     const rankedMatchState = getRankedMatchState();
 
 
-        // Update players' games count
-        const matchesColRef = collection(db, 'matches');
-        const playersColRef = collection(db, 'players');
-        // For each player, update games only
-        const updatePromises = [];
-        teamA.forEach(name => {
-            const p = playerMap[name];
-            updatePromises.push(updateDoc(doc(playersColRef, name), { games: (p.games || 0) + 1 }));
-        });
-        teamB.forEach(name => {
-            const p = playerMap[name];
-            updatePromises.push(updateDoc(doc(playersColRef, name), { games: (p.games || 0) + 1 }));
-        });
-        await Promise.all(updatePromises);
+        await incrementPlayerGames([...teamA, ...teamB]);
 
         // Add match log
         try {
@@ -196,40 +180,22 @@ export function setupMatchForm() {
                 winner: winner,
                 goalsA: parsedGoalsA,
                 goalsB: parsedGoalsB,
-                timestamp: serverTimestamp(),
                 pairingMetadata,
                 positionsConfirmed: positionsConfirmedState,
                 ranked: rankedMatchState ?? true,
                 ...(liveMode && goalLog.length > 0 ? { goalLog: goalLog.slice(), matchDuration: Date.now() - matchStartTime } : {})
             };
 
-            // 2. Add match to Firestore first
-            const matchDocRef = await addDoc(matchesColRef, matchData);
+            if (vibrationTrackingEnabled && vibrationLog.length > 0) {
+                matchData.vibrationLog = vibrationLog.slice();
+            }
+
+            // 2. Add match to backend API
+            await createMatch(matchData);
             clearLastSuggestion();
 
-            // 3. If vibration tracking enabled, upload log to Storage and update match doc
-            if (vibrationTrackingEnabled && vibrationLog.length > 0) {
-                try {
-                    uploadIndicator.style.display = 'flex';
-                    const { storage, storageRef } = await import('./firebase-service.js');
-                    const logPath = `vibrationLogs/${matchDocRef.id}.json`;
-                    const fileRef = storageRef(storage, logPath);
-                    const logBlob = new Blob([JSON.stringify(vibrationLog)], { type: 'application/json' });
-                    await (await import('firebase/storage')).uploadBytes(fileRef, logBlob);
-                    await updateDoc(matchDocRef, { vibrationLogPath: logPath });
-                    // wait for a second to admire the loading animation
-                    await new Promise(res => setTimeout(res, 1000));
-                    console.log("Vibration log uploaded successfully.");
-                } catch (uploadError) {
-                    console.log("Vibration log upload failed:", uploadError.message || uploadError);
-                    alert("Vibration log upload failed. Match was still submitted, but without vibration log.");
-                } finally {
-                    uploadIndicator.style.display = 'none';
-                    stopVibrationTracking();
-                    // wait until uploadIndicator is hidden
-                    await new Promise(res => setTimeout(res, 300));
-                }
-            }
+            uploadIndicator.style.display = 'none';
+            stopVibrationTracking();
 
             alert("Match submitted!");
             resetMatchForm();

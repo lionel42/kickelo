@@ -1,5 +1,5 @@
 // Import from the data service and for write/check operations
-import { db, doc, getDoc, setDoc } from './firebase-service.js';
+import { ensurePlayer } from './api-service.js';
 import { allPlayers } from './player-data-service.js';
 import { teamA1Select, teamA2Select, teamB1Select, teamB2Select } from './dom-elements.js';
 
@@ -16,19 +16,8 @@ export async function getOrCreatePlayer(name) {
         return existingPlayer;
     }
 
-    // If not in cache, check Firestore to be certain before creating.
-    const playerDocRef = doc(db, 'players', name);
-    const docSnap = await getDoc(playerDocRef);
-    if (!docSnap.exists()) {
-        // Create the player. The player-data-service will pick up this change automatically.
-        console.log(`Creating new player in Firestore: ${name}`);
-        const newPlayerData = { name: name, games: 0 };
-        await setDoc(playerDocRef, newPlayerData);
-        return newPlayerData;
-    } else {
-        // This case is rare if the cache is up to date, but handles edge cases.
-        return docSnap.data();
-    }
+    const created = await ensurePlayer(name);
+    return { id: created.id, name: created.name, games: created.games };
 }
 
 /**
@@ -111,9 +100,7 @@ async function handlePlayerDropdownChange(e) {
             e.target.appendChild(opt);
             e.target.value = trimmedName;
 
-            // This write will be picked up by the player-data-service listener,
-            // which will then fire the 'players-updated' event, triggering updatePlayerDropdowns.
-            // await getOrCreatePlayer(trimmedName);
+            await getOrCreatePlayer(trimmedName);
 
         } else {
             e.target.value = ""; // Reset dropdown if user cancels prompt

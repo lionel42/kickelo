@@ -1,7 +1,7 @@
 // src/constants.js
 
 // Game configuration
-export const MAX_GOALS = 5;
+export const MAX_GOALS = 10;
 
 // ELO rating system configuration
 export const STARTING_ELO = 1500;
@@ -25,7 +25,7 @@ export const BADGE_THRESHOLDS = Object.freeze({
 		minLeadChanges: 3,
 	},
 	chillComeback: {
-		requireFinalScore: '5:4',
+		requireFinalScore: `${MAX_GOALS}:${MAX_GOALS - 1}`,
 	},
 	gardener: {
 		requiredWeekdays: 5,

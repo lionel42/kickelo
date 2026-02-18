@@ -1,0 +1,45 @@
+# Node
+node_modules
+npm-debug.log
+dist
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+.venv
+.env
+backend/*.db
+backend/*.sqlite
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+
+# Firebase (legacy)
+.firebase
+firebase-debug.log
+firebase-debug.*.log
+firebase_emulator_cache
+
+# Tests
+test
+coverage
+
+# Documentation
+*.md
+!README.md
+
+# Misc
+.DS_Store
+*.swp
+*.swo

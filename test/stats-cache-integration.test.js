@@ -6,6 +6,7 @@
  */
 
 import { updateStatsCache, getCachedStats, getAllCachedStats, isCacheReady, getCacheInfo, getAllTeamEloStats } from '../src/stats-cache-service.js';
+import { MAX_GOALS } from '../src/constants.js';
 
 // Create test matches
 function createTestMatches() {
@@ -19,7 +20,7 @@ function createTestMatches() {
             teamA: ['Alice', 'Bob'],
             teamB: ['Charlie', 'David'],
             winner: 'A',
-            goalsA: 5,
+            goalsA: MAX_GOALS,
             goalsB: 3,
             eloDelta: 20,
             timestamp: now - oneHour,
@@ -30,8 +31,8 @@ function createTestMatches() {
             teamA: ['Alice', 'Charlie'],
             teamB: ['Bob', 'David'],
             winner: 'B',
-            goalsA: 4,
-            goalsB: 5,
+            goalsA: MAX_GOALS - 1,
+            goalsB: MAX_GOALS,
             eloDelta: 25,
             timestamp: now - (2 * oneHour),
             goalLog: []
@@ -41,7 +42,7 @@ function createTestMatches() {
             teamA: ['Alice', 'Bob'],
             teamB: ['Charlie', 'David'],
             winner: 'A',
-            goalsA: 5,
+            goalsA: MAX_GOALS,
             goalsB: 2,
             eloDelta: 15,
             timestamp: now - oneDay,
@@ -152,7 +153,7 @@ const updatedMatches = [
         teamB: ['Charlie', 'David'],
         winner: 'B',
         goalsA: 3,
-        goalsB: 5,
+        goalsB: MAX_GOALS,
         eloDelta: 30,
         timestamp: Date.now(),
         goalLog: []
