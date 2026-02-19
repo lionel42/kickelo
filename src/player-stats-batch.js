@@ -1,5 +1,5 @@
 import { MAX_GOALS, STARTING_ELO, INACTIVE_THRESHOLD_DAYS, BADGE_THRESHOLDS } from "./constants.js";
-import { expectedScore, updateRating } from "./elo-service.js";
+import { calculateMatchEloDelta, expectedScore, updateRating } from "./elo-service.js";
 import { rate as rateOpenSkill, rating as createOpenSkillRating, ordinal as openskillOrdinal } from "openskill";
 
 const MILLIS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -153,9 +153,16 @@ export function computeAllPlayerStats(matches, options = {}) {
             ? match.teamB.reduce((sum, pid) => sum + (playerMeta[pid]?.preMatchElo ?? STARTING_ELO), 0) / match.teamB.length
             : STARTING_ELO;
 
-        const expectedA = expectedScore(teamAAvgElo, teamBAvgElo);
-        const scoreA = match.winner === 'A' ? 1 : 0;
-        const matchEloDelta = Math.abs(updateRating(0, expectedA, scoreA, seasonKFactor));
+        const { delta: matchEloDelta } = calculateMatchEloDelta({
+            teamARating: teamAAvgElo,
+            teamBRating: teamBAvgElo,
+            teamASize: match.teamA.length,
+            teamBSize: match.teamB.length,
+            winner: match.winner,
+            goalsA: match.goalsA,
+            goalsB: match.goalsB,
+            kFactor: seasonKFactor
+        });
         const matchKey = match.id || `${match.timestamp}-${match.teamA?.join(',') ?? ''}-${match.teamB?.join(',') ?? ''}`;
         matchDeltas[matchKey] = matchEloDelta;
         

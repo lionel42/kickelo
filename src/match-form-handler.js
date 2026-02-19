@@ -1,7 +1,7 @@
 // src/match-form-handler.js
 
 import { createMatch, incrementPlayerGames } from './api-service.js';
-import { expectedScore, updateRating } from './elo-service.js';
+import { calculateMatchEloDelta } from './elo-service.js';
 import { getOrCreatePlayer } from './player-manager.js';
 import { getCachedStats, isCacheReady } from './stats-cache-service.js';
 import { getSelectedSeason } from './season-service.js';
@@ -88,7 +88,7 @@ export function setupMatchForm() {
             return alert(`One team must have exactly ${MAX_GOALS} goals, the other less.`);
         }
 
-        // --- Build teams, allow 1v1 or 2v2 ---
+        // --- Build teams, allowing 1v1, 1v2, and 2v2 ---
         // For each team, if both positions are the same or one is blank, use only one player
         let teamA = [];
         if (tA1 && tA2) {
@@ -119,9 +119,10 @@ export function setupMatchForm() {
         if (uniquePlayers.size < allPlayers.length) {
             return alert("A player cannot play on both teams.");
         }
-        // Validation: Ensure equal team sizes
-        if (teamA.length !== teamB.length) {
-            return alert("Both teams must have the same number of players (1v1 or 2v2).");
+        // Validation: Allow 1v1, 2v2, and 1v2 / 2v1 only
+        const totalPlayers = teamA.length + teamB.length;
+        if (totalPlayers < 2 || totalPlayers > 4 || teamA.length > 2 || teamB.length > 2) {
+            return alert("Only 1v1, 1v2, 2v1, or 2v2 matches are supported.");
         }
 
         if (requiresPositionConfirmation() && !isPositionConfirmationChecked()) {
@@ -145,11 +146,18 @@ export function setupMatchForm() {
         // Calculate season-aware team ratings (average of team members)
         const teamARating = teamA.reduce((sum, name) => sum + getSeasonElo(name), 0) / teamA.length;
         const teamBRating = teamB.reduce((sum, name) => sum + getSeasonElo(name), 0) / teamB.length;
-        const expectedA = expectedScore(teamARating, teamBRating);
-        const scoreA = winner === "A" ? 1 : 0;
         const season = getSelectedSeason();
         const seasonKFactor = season?.kFactor;
-        const delta = updateRating(0, expectedA, scoreA, seasonKFactor);
+        const { delta } = calculateMatchEloDelta({
+            teamARating,
+            teamBRating,
+            teamASize: teamA.length,
+            teamBSize: teamB.length,
+            winner,
+            goalsA: parsedGoalsA,
+            goalsB: parsedGoalsB,
+            kFactor: seasonKFactor
+        });
 
         // Confirmation message
         const winnerNames = winner === "A" ? teamA.join(" & ") : teamB.join(" & ");

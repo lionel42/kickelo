@@ -61,29 +61,9 @@ function computeWinsAndLosses(stats) {
     
     // Total games is the length of eloTrajectory (each match = 1 entry)
     const totalGames = stats.eloTrajectory.length;
-    
-    // We can derive wins from winLossRatios, but we need to be careful:
-    // In a 2v2 match, winLossRatios counts once per opponent (so 2x per match)
-    // We need to count unique matches instead
-    let wins = 0;
-    let losses = 0;
-    
-    if (stats.winLossRatios) {
-        // Count wins/losses per opponent, then divide by number of opponents per match
-        // Assuming 2v2 matches (2 opponents per match)
-        const opponentsPerMatch = 2;
-        let totalWinEntries = 0;
-        let totalLossEntries = 0;
-        
-        for (const opponent in stats.winLossRatios) {
-            totalWinEntries += stats.winLossRatios[opponent].wins;
-            totalLossEntries += stats.winLossRatios[opponent].losses;
-        }
-        
-        // Each match creates entries for each opponent, so divide by opponents per match
-        wins = totalWinEntries / opponentsPerMatch;
-        losses = totalLossEntries / opponentsPerMatch;
-    }
+
+    const wins = stats.streakyness?.totalWins ?? 0;
+    const losses = stats.streakyness?.totalLosses ?? 0;
     
     return { wins, losses, totalGames };
 }
