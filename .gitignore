@@ -83,3 +83,6 @@ backend/data/
 
 # Package-lock.json
 package-lock.json
+
+# Data base sqlite 
+data/*.db
